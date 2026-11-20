@@ -18,7 +18,7 @@ On the six blocks, the model beats all-burnt on 4 of 6, but the gain is not sign
 ## Why it doesn't work here
 
 - **Label density.** 40–69% of the scene is scar. An all-burnt guess scores well on any such scene.
-- **Seasonal gap.** The pre-fire scene is five months before the post-fire scene, so ordinary dry-season change can look like burn.
+- **Seasonal gap.** The pre-fire scene is about three and a half months before the post-fire scene, so ordinary dry-season change can look like burn.
 - **Label source.** The QLD product is built from Sentinel-2, the same sensor as the input. The score measures agreement with that product, not with ground truth.
 - **Neighbouring blocks** share borders, so held-out blocks are not fully independent.
 

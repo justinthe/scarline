@@ -36,7 +36,7 @@ Visitors arrive from a link, usually on desktop, sometimes on a phone. Expect a 
 ## Brand Commitments
 
 - The negative result is stated on the first screen, same visual weight as the title. Not a footnote.
-- Scores are labelled with their limits: labels are agency-derived from Sentinel-2, the same sensor as the input; scene pair five months apart; one area, one season.
+- Scores are labelled with their limits: labels are agency-derived from Sentinel-2, the same sensor as the input; scene pair about three and a half months apart; one area, one season.
 - Gulf is not part of the result and is not shown as if it were.
 - Every dataset has its licence and attribution visible (Copernicus Legal Notice; CC BY 4.0 for the Queensland labels).
 

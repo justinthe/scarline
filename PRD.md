@@ -77,7 +77,7 @@ These are part of the product, not footnotes. They must be visible on the main p
 
 - Banner: "Negative result: a dNBR threshold does not beat 'everything burnt' on this area."
 - Labels are agency-derived from Sentinel-2, the same sensor as the input. Scores measure agreement with that product, not ground truth.
-- The pre and post scenes are five months apart. Seasonal change can look like burn.
+- The pre and post scenes are about three and a half months apart. Seasonal change can look like burn.
 - One area, one fire season, one scene pair.
 - Blocks in the cross-validation are adjacent and not fully independent.
 - Gulf is not part of this result.

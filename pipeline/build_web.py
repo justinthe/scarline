@@ -123,7 +123,7 @@ def build_home_change(k, x0, y0, cell):
 
 
 def build_map(dnbr, scored):
-    """2D map assets on a square-cell EPSG:3857 grid, W=1024. See docs/index.html (#map) for the reader."""
+    """2D map assets on a square-cell EPSG:3857 grid, W=1024. See docs/specialists.html (#map) for the reader."""
     global SPLIT_COL
     H0, W0 = dnbr.shape
     SPLIT_COL = W0 // 2
@@ -194,7 +194,7 @@ def build_map(dnbr, scored):
     build_scars(prof["crs"], bounds)
     build_home_change(k, x0, y0, cell)
 
-    # quadratic fit: source (col, row) pixel centre -> 3857 (x, y), in s = col/W0, t = row/H0 (s = u, t = 1 - v of the DEM texture)
+    # quadratic fit: source (col, row) pixel centre -> 3857 (x, y), in s = col/W0, t = row/H0
     gs, gt = np.meshgrid(np.linspace(0, 1, 21), np.linspace(0, 1, 21))
     gs, gt = gs.ravel(), gt.ravel()
     to3857 = pyproj.Transformer.from_crs(prof["crs"], 3857, always_xy=True).transform

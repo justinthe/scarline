@@ -15,8 +15,8 @@
 .pic { position: relative; border: 1px solid var(--ink); padding: 6px; background: var(--paper); }
 .pic img { display: block; width: 100%; height: auto; }
 .ov { position: absolute; left: 6px; top: 6px; width: calc(100% - 12px); height: calc(100% - 12px); }
-.plate figcaption { font-size: .95rem; padding-top: .5rem; border-top: 1px solid var(--rule); margin-top: .4rem; }
-.grid { display: block; color: var(--ink-2); font-size: .85rem; margin-top: .2rem; letter-spacing: .02em; }
+.plate figcaption { font-size: 1.125rem; padding-top: .5rem; border-top: 1px solid var(--rule); margin-top: .4rem; }
+.grid { display: block; color: var(--ink-2); font-size: 1rem; margin-top: .2rem; letter-spacing: .02em; }
 .flip { display: none; }
 .js .flip { display: inline-block; }
 @media (max-width: 899px) {
@@ -38,14 +38,14 @@
 .track { position: relative; height: 22px; border: 1px solid var(--ink); background: var(--paper); }
 .track i { position: absolute; inset: 0 auto 0 0; background: var(--ink); }
 .track.guess i { background: var(--rule); }
-.scale { display: flex; justify-content: space-between; font-size: .85rem; color: var(--ink-2); }
+.scale { display: flex; justify-content: space-between; font-size: 1rem; color: var(--ink-2); }
 .close { font: 700 1.2rem/1.4 var(--head); margin-top: 2.4rem; }
 </style>
 </head>
 <body>
 <header class="frame"><div>
 <a class="site" href="index.html">Scarline</a>
-<nav aria-label="Plate index"><span>Plate index</span><a href="index.html" aria-current="page">Home</a><a href="specialists.html">Specialists</a><a href="#sources">Sources</a></nav>
+<nav aria-label="Pages"><span>Pages</span><a href="index.html" aria-current="page">Home</a><a href="specialists.html">Specialists</a><a href="#sources">Sources</a></nav>
 </div></header>
 <main>
 <div class="col">
@@ -58,7 +58,7 @@
 </div>
 
 <div class="wide pair-wrap">
-<button type="button" class="flip" id="flip" aria-pressed="false">Show October (after)</button>
+<button type="button" class="flip" id="flip" aria-pressed="false">Showing July (before). Show October</button>
 <div class="plates" id="plates" data-show="pre">
 <figure class="plate" id="plate1">
 <p class="plate-no">Plate 1: Before, July 2022</p>
@@ -73,7 +73,7 @@
 <path d="M968 44 L986 108 L968 96 L950 108 Z" fill="#14181d"/>
 <text x="968" y="144" font-size="34" font-weight="700" fill="#14181d" font-family="Arial, sans-serif" text-anchor="middle">N</text>
 </svg></div>
-<figcaption>Plate 1: July 2022, before the fires.<span class="grid">Tile 54LXL &middot; 142.0&ndash;142.5&deg;E, 13.0&ndash;13.5&deg;S &middot; false colour</span></figcaption>
+<figcaption>Plate 1: July 2022, before the fires.<span class="grid">142.0&ndash;142.5&deg;E, 13.0&ndash;13.5&deg;S &middot; colours chosen so burnt ground stands out</span></figcaption>
 </figure>
 <figure class="plate" id="plate2">
 <p class="plate-no">Plate 2: After, October 2022</p>
@@ -88,11 +88,11 @@
 <path d="M968 44 L986 108 L968 96 L950 108 Z" fill="#14181d"/>
 <text x="968" y="144" font-size="34" font-weight="700" fill="#14181d" font-family="Arial, sans-serif" text-anchor="middle">N</text>
 </svg></div>
-<figcaption>Plate 2: October 2022, after.<span class="grid">Tile 54LXL &middot; 142.0&ndash;142.5&deg;E, 13.0&ndash;13.5&deg;S &middot; false colour</span></figcaption>
+<figcaption>Plate 2: October 2022, after.<span class="grid">142.0&ndash;142.5&deg;E, 13.0&ndash;13.5&deg;S &middot; colours chosen so burnt ground stands out</span></figcaption>
 </figure>
 <figure class="plate" id="plate3">
 <p class="plate-no">Plate 3: Change</p>
-<div class="pic"><img src="data/home_change.png" width="1024" height="1154" alt="Grey satellite picture with orange tint where the satellite saw the ground change, and white outlines marking the official map of what burned. Most of the picture is orange.">
+<div class="pic"><img src="data/home_change.png" width="1024" height="1154" alt="Grey satellite picture with orange tint where the ground changed. White outlines mark the official burnt map. Most of the picture is orange.">
 <svg class="ov" viewBox="0 0 1024 1154" aria-hidden="true" focusable="false">
 <rect x="24" y="1058" width="260" height="92" fill="#dfe5ea" fill-opacity=".92"/>
 <path d="M40 1112 H238 M40 1100 V1124 M139 1106 V1118 M238 1100 V1124" stroke="#14181d" stroke-width="4" fill="none"/>
@@ -103,7 +103,7 @@
 <path d="M968 44 L986 108 L968 96 L950 108 Z" fill="#14181d"/>
 <text x="968" y="144" font-size="34" font-weight="700" fill="#14181d" font-family="Arial, sans-serif" text-anchor="middle">N</text>
 </svg></div>
-<figcaption>Plate 3: The orange areas are where the satellite saw the ground change. The white outlines are the official map of what burned.<span class="grid">Tile 54LXL &middot; 142.0&ndash;142.5&deg;E, 13.0&ndash;13.5&deg;S</span></figcaption>
+<figcaption>Plate 3: The orange areas are where the satellite saw the ground change. The white outlines are the official map of what burned.<span class="grid">142.0&ndash;142.5&deg;E, 13.0&ndash;13.5&deg;S</span></figcaption>
 </figure>
 </div>
 </div>
@@ -143,18 +143,18 @@
 <div class="bar-row"><p>Guess that everything burned: 81</p><div class="track guess" role="img" aria-label="The everything-burned guess scored 81 out of 100"><i style="width:81%"></i></div></div>
 <div class="scale" aria-hidden="true"><span>0</span><span>100</span></div>
 </div>
-<p>This is a score out of 100 (an F1 score times 100), not a percentage match.</p>
+<p>We tested it on the eastern half. This is a score out of 100 (an F1 score times 100), not a percentage match.</p>
 <details><summary>What does this mean?</summary>
 <p>An F1 score checks two things at once. How much of the burnt ground did we find? And how little did we mark by mistake? A perfect score is 100.</p>
 </details>
-<p>We repeated the test on six smaller squares and got the same answer.</p>
+<p>We also tested six smaller squares. Our method did a little better than the guess on four of them, but not by enough to count.</p>
 </section>
 
 <section>
 <h2>5 Why it failed here</h2>
 <ul>
 <li>Most of the land burned. A guess of &ldquo;all burned&rdquo; is right most of the time.</li>
-<li>The photos are five months apart. Normal dry-season browning can look like fire.</li>
+<li>The photos are about three and a half months apart. Normal dry-season browning can look like fire.</li>
 <li>The official map came from the same satellite. So it is not an independent check.</li>
 <li>The test squares touch each other. So they are not fully separate tests.</li>
 </ul>
@@ -186,6 +186,7 @@
     var on = b.getAttribute("aria-pressed") !== "true";
     b.setAttribute("aria-pressed", String(on));
     p.setAttribute("data-show", on ? "post" : "pre");
+    b.textContent = on ? "Showing October (after). Show July" : "Showing July (before). Show October";
   });
 })();
 </script>
