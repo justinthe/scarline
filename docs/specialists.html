@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scarline: specialists</title>
+<meta name="description" content="Interactive map, threshold slider, scores and methods for the Scarline Cape York burn-scar test.">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="site.css">
+<script defer src="vendor/leaflet/leaflet.js"></script>
+<style>
+.leaflet-image-layer { image-rendering: pixelated; }
+.mgroups { display: flex; flex-wrap: wrap; gap: .8rem 1.6rem; margin: 1rem 0; }
+.btns { display: inline-flex; flex-wrap: wrap; gap: .4rem; }
+.glabel { display: block; margin-bottom: .3rem; font-weight: 700; font-size: .8rem; color: var(--ink-2); letter-spacing: .08em; text-transform: uppercase; }
+.mctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem 2rem; margin-bottom: 1rem; }
+.dial label { display: flex; justify-content: space-between; font-weight: 700; font-size: .95rem; }
+.dial input[type=range] { width: 100%; accent-color: var(--ink); height: 28px; }
+.readout { display: grid; grid-template-columns: repeat(4, 1fr); gap: .6rem; margin: .5rem 0 1rem; }
+.readout div { border-top: 2px solid var(--ink); padding-top: .4rem; }
+.readout span { display: block; font: 700 1.5rem/1.4 var(--head); font-variant-numeric: tabular-nums; }
+.readout small { color: var(--ink-2); font-size: .85rem; }
+.mapgrid { display: grid; grid-template-columns: minmax(0, 1fr) 21rem; gap: 1.2rem; align-items: start; }
+.mapwrap { position: relative; }
+#lmap { height: min(72vh, 680px); min-height: 380px; border: 1px solid var(--ink); background: var(--paper-2); }
+.leaflet-container { font: 500 .8rem/1.4 var(--body); }
+.leaflet-tooltip.splitlabel { background: var(--paper); color: var(--ink); border: 1px solid var(--ink); font: 700 .75rem/1.3 var(--body); box-shadow: none; }
+.leaflet-tooltip.splitlabel::before { display: none; }
+.xhair { display: none; position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; pointer-events: none; z-index: 500; border: 2px solid #fff; outline: 1px solid var(--ink); border-radius: 50%; }
+.mapwrap.kbd .xhair { display: block; }
+.mapmsg { padding: 1rem; }
+#inspect { border: 1px solid var(--ink); padding: 1rem 1.1rem; background: var(--paper-2); font-size: .92rem; }
+#inspect h3 { font-size: 1.1rem; margin: 0 0 .6rem; }
+#inspect dl { margin: 0; display: grid; grid-template-columns: 6.6rem minmax(0, 1fr); gap: .4rem .7rem; }
+#inspect dt { color: var(--ink-2); }
+#inspect dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.mlegend { display: grid; gap: .5rem; margin-top: 1rem; font-size: .95rem; color: var(--ink-2); }
+.mramp { position: relative; display: flex; height: 12px; margin: .2rem 0 1.8rem; max-width: 26rem; }
+.mramp b { background: var(--rule); }
+.mramp b.hi { flex: 1; background: var(--rust); }
+.mramp i { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
+.mramp span { position: absolute; top: 16px; font-size: .8rem; white-space: nowrap; transform: translateX(-50%); }
+.mramp span:first-of-type { transform: none; }
+.mramp span:last-of-type { transform: translateX(-100%); }
+.lkeys { display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; }
+.lkeys span { display: inline-flex; align-items: center; gap: .45rem; }
+.sw { display: inline-block; width: 26px; height: 0; border-top: 2px solid var(--ink); }
+.sw.dash { border-top-style: dashed; }
+.sw.dot { border-top-style: dotted; border-top-width: 3px; }
+.sw.box { height: 12px; width: 16px; border: 2px dotted var(--ink); }
+.blocks { display: grid; gap: .55rem; margin: 1rem 0; }
+.blockrow { display: grid; grid-template-columns: 9rem 1fr 3rem; gap: .8rem; align-items: center; font-size: .95rem; }
+.bar { position: relative; height: 12px; background: var(--paper-2); border: 1px solid var(--rule); }
+.bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--rule); }
+.bar b { position: absolute; top: -4px; bottom: -4px; width: 3px; background: var(--ink); }
+@media (max-width: 900px) { .mapgrid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .readout { grid-template-columns: repeat(2, 1fr); } .blockrow { grid-template-columns: 6rem 1fr 3rem; } #lmap { height: 62vh; } }
+</style>
+</head>
+<body>
+<header class="frame"><div>
+<a class="site" href="index.html">Scarline</a>
+<nav aria-label="Plate index"><span>Plate index</span><a href="index.html">Home</a><a href="specialists.html" aria-current="page">Specialists</a><a href="index.html#sources">Sources</a></nav>
+</div></header>
+<main class="wide">
+<div class="col" style="margin-left:0">
+<h1>Specialists</h1>
+<p>The map, the scores and the methods behind the <a href="index.html">home page</a>. Negative result: a single dNBR threshold does not beat &ldquo;everything burnt&rdquo; on this area. Terms are explained in the <a href="#glossary">glossary</a>.</p>
+</div>
+
+<section id="map">
+<h2>Plate A: Inspect the map, cell by cell</h2>
+<p class="small" style="max-width:48rem">Cape York, QLD, 142.0&ndash;142.5&deg;E, 13.0&ndash;13.5&deg;S. Click a cell to see the values behind the colour: reflectance on both dates, dNBR, the Queensland scar label and how the threshold treats it. Display cells are about 49 m across; each shows the single 10 m pixel at its centre. No basemap is loaded, so this page makes no request to any other site.</p>
+<div class="mgroups">
+<div><span class="glabel" id="gScene">Scene</span>
+<div class="btns" role="group" aria-labelledby="gScene">
+<button type="button" data-mscene="pre" aria-pressed="false">13 Jul</button>
+<button type="button" data-mscene="post" aria-pressed="true">26 Oct</button>
+<button type="button" data-mscene="none" aria-pressed="false">None</button>
+</div></div>
+<div><span class="glabel" id="gLayers">Layers</span>
+<div class="btns" role="group" aria-labelledby="gLayers">
+<button type="button" data-mlayer="dnbr" aria-pressed="true">dNBR</button>
+<button type="button" data-mlayer="truth" aria-pressed="true">QLD scars Aug&ndash;Oct</button>
+<button type="button" data-mlayer="amb" aria-pressed="false">Scars Jul/Nov (dashed)</button>
+<button type="button" data-mlayer="split" aria-pressed="true">Split line</button>
+</div></div>
+</div>
+<div class="mctl">
+<div class="dial"><label for="thr"><span>Threshold</span><span id="mThrVal">0.21</span></label>
+<input id="thr" type="range" min="0.05" max="0.85" step="0.01" value="0.21"></div>
+<div class="dial"><label for="mOp"><span>dNBR opacity</span><span id="mOpVal">70%</span></label>
+<input id="mOp" type="range" min="0" max="1" step="0.05" value="0.7"></div>
+</div>
+<div class="readout" aria-live="polite">
+<div><span id="rIoU">&ndash;</span><small>IoU vs QLD scars, east half</small></div>
+<div><span id="rF1">&ndash;</span><small>F1 vs QLD scars, east half</small></div>
+<div><span id="rBurnt">&ndash;</span><small>East half marked burnt</small></div>
+<div><span id="rScar">&ndash;</span><small>East half, QLD scar share</small></div>
+</div>
+<p class="small">IoU and F1 are shown only at 0.21, the threshold chosen on the west half. Showing them for other thresholds would mean picking a threshold by its test score.</p>
+<div class="mapgrid">
+<div class="mapwrap">
+<div id="lmap" role="region" aria-label="Map of Cape York burn scars. Arrow keys pan, plus and minus zoom, Enter inspects the cell at the centre."><div class="mapmsg" id="mapmsg">The map loads as you scroll to it. It needs JavaScript.</div></div>
+<div class="xhair" aria-hidden="true"></div>
+</div>
+<div id="inspect">
+<h3>Cell inspector</h3>
+<p id="inspectStatus" class="small" aria-live="polite" style="margin:0 0 .6rem"></p>
+<dl id="inspectDl"><dt>Status</dt><dd>Click the map, or focus it and press Enter, to inspect the centre cell.</dd></dl>
+</div>
+</div>
+<div class="mlegend" role="group" aria-label="Map legend">
+<div>dNBR above the threshold is rust; below it is faint grey. The tick marks the threshold. The overlay fades at high zoom (45% at zoom 14 and up).</div>
+<div class="mramp" aria-hidden="true"><b id="mLo"></b><b class="hi"></b><i id="mTick"></i><span style="left:0">&le;0.05</span><span id="mTickLab"></span><span style="left:100%">&ge;0.85</span></div>
+<div class="lkeys">
+<span><i class="sw box"></i>Not scored (cloud, shadow, Jul/Nov scar, undefined)</span>
+<span><i class="sw"></i>QLD scar, Aug&ndash;Oct</span>
+<span><i class="sw dash"></i>QLD scar, Jul/Nov</span>
+<span><i class="sw dot"></i>Split: threshold chosen west, scored east</span>
+</div>
+</div>
+<p class="small" style="max-width:48rem;margin-top:1rem">Values come from the single 10 m pixel at the centre of a ~49 m display cell (SWIR2 and the cloud mask are native 20 m, resampled to 10 m). &ldquo;Scar&rdquo; means the Queensland Sentinel-2 fire-scar product, not a field check. Outlines on the map are simplified to about 50 m, and holes and parts under 1 ha are dropped. The inspector uses the full, unsimplified label, so the two can disagree near edges.</p>
+<noscript><p class="small">The interactive map needs JavaScript. The scores below are filled in by JavaScript too.</p></noscript>
+</section>
+
+<section id="results">
+<h2>Plate B: Scores, including the losing ones</h2>
+<p style="max-width:48rem">The model is a single threshold. The trivial baseline marks every pixel burnt. Both are scored on the same east-half pixels.</p>
+<div style="overflow-x:auto"><table>
+<thead><tr><th scope="col">Method</th><th scope="col">F1</th><th scope="col">IoU</th><th scope="col">True positives</th><th scope="col">False positives</th><th scope="col">Missed</th></tr></thead>
+<tbody id="resTable"></tbody>
+</table></div>
+<h3 style="margin-top:2rem">Six blocks, each held out in turn</h3>
+<p class="small" style="max-width:48rem">Each block is scored with a threshold chosen on the other five. The grey bar is the all-burnt guess; the black tick is the model. Labels show the share of each block that is scar.</p>
+<div class="blocks" id="blocks"></div>
+<p style="max-width:48rem"><b>Pooled F1:</b> model <span id="pooledM"></span>, all-burnt <span id="pooledA"></span>, fixed 0.27 threshold <span id="pooled27"></span>. The model beats the guess on 4 of 6 blocks. That gap is not statistically significant.</p>
+</section>
+
+<section id="method">
+<h2>Plate C: Method details</h2>
+<div class="col" style="margin-left:0">
+<ul>
+<li><b>Scenes.</b> Sentinel-2 L2A, tile 54LXL, from Element 84 Earth Search. Before: 13 July 2022 (0.08% cloud). After: 26 October 2022 (0.71% cloud).</li>
+<li><b>Cloud mask.</b> Only pixels whose scene classification is 4, 5 or 6 (vegetation, bare soil, water) count, on both dates.</li>
+<li><b>Index.</b> NBR = (NIR &minus; SWIR2) / (NIR + SWIR2). dNBR = NBR before &minus; NBR after.</li>
+<li><b>Labels.</b> Queensland 2022 fire scars. Scars from August to October count as burnt. July and November scars are left out, because they may fall outside the photo dates.</li>
+<li><b>Split.</b> The threshold (0.21) is chosen on the west half and scored on the east half.</li>
+<li><b>Blocks.</b> Six 10 km blocks, each held out in turn, with the threshold chosen on the other five.</li>
+</ul>
+<h3>Limits</h3>
+<ul>
+<li>One area, one fire season, one pair of photos.</li>
+<li>Labels come from the same sensor as the input. They are not hand-checked.</li>
+<li>The photos are about three and a half months apart, so dry-season change can look like burn.</li>
+<li>Neighbouring blocks share borders, so they are not fully independent.</li>
+<li>Gulf (tile 54KWF) was investigated and not scored: its scars fall mostly in December, outside the label window.</li>
+</ul>
+</div>
+</section>
+
+<section id="sources">
+<h2>Plate D: Sources and licences</h2>
+<div class="col" style="margin-left:0">
+<ul>
+<li>Sentinel-2: Copernicus Sentinel Data Legal Notice. Contains modified Copernicus Sentinel data 2022.</li>
+<li>Queensland fire scars: CC BY 4.0. State of Queensland (Department of Environment and Science) 2022.</li>
+<li>Leaflet 1.9.4 (BSD 2-Clause), served from the folder vendor/leaflet.</li>
+</ul>
+<p>Code and data: see the repository linked from the <a href="index.html#sources">home page</a>.</p>
+</div>
+</section>
+
+<section id="glossary">
+<h2>Plate E: Glossary</h2>
+<div class="col" style="margin-left:0">
+<dl class="glossary">
+<dt>NIR</dt><dd>Near infrared. Light just past red that our eyes cannot see. Healthy plants reflect a lot of it.</dd>
+<dt>SWIR2</dt><dd>Shortwave infrared, band 2. A longer kind of infrared light. Burnt and bare ground reflect more of it.</dd>
+<dt>NBR</dt><dd>Normalised burn ratio. One number made from NIR and SWIR2 for each pixel. Low values suggest burnt ground.</dd>
+<dt>dNBR</dt><dd>The drop in NBR between the before and after photos. A higher dNBR means more change.</dd>
+<dt>Threshold</dt><dd>A cut-off. Pixels with a dNBR above it are marked burnt. Pixels below it are not.</dd>
+<dt>F1</dt><dd>A score from 0 to 1 that mixes two things: how much burnt ground we found, and how little we marked by mistake.</dd>
+<dt>IoU</dt><dd>Intersection over union. The area where our map and the official map agree, divided by the area either one marks as burnt.</dd>
+<dt>Leave-one-block-out</dt><dd>A test where the land is cut into blocks. Each block is hidden in turn while we pick the threshold on the rest.</dd>
+<dt>False colour</dt><dd>A picture that shows invisible light as visible colours. Here SWIR2 is red, NIR is green and red light is blue.</dd>
+<dt>Tile</dt><dd>One fixed square of satellite picture, about 110 km wide. Ours is called 54LXL. We use a part of it.</dd>
+<dt>Scene</dt><dd>One satellite photo of a tile taken on one day.</dd>
+</dl>
+</div>
+</section>
+</main>
+<footer><p class="small"><a href="index.html">Back to the home page</a>. Scarline is a study, not a fire warning service.</p></footer>
+<script type="module">
+// Specialists page: map, cell inspector, scores. Only local files (Leaflet is in vendor/leaflet/).
+const $ = (id) => document.getElementById(id);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const D = "data/";
+const REC = 18, T0 = 0.05, TSTEP = 0.01;
+const R = 6378137;
+const merc = (lat, lon) => ({ x: R * lon * Math.PI / 180, y: R * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) }); // same as L.CRS.EPSG3857.project
+const unmerc = (x, y) => ({ lat: (2 * Math.atan(Math.exp(y / R)) - Math.PI / 2) * 180 / Math.PI, lon: x / R * 180 / Math.PI });
+
+// ---------- data ----------
+let metaP = null, kP = null, whole = null;
+const getMeta = () => (metaP ??= fetch(D + "map_meta.json").then((r) => { if (!r.ok) throw new Error("meta"); return r.json(); }));
+const getK = () => (kP ??= (async () => {  // map_k.png: R = k, G = flags low byte, decoded without colour conversion
+  const blob = await (await fetch(D + "map_k.png")).blob();
+  const bmp = await createImageBitmap(blob, { colorSpaceConversion: "none", premultiplyAlpha: "none" });
+  const c = document.createElement("canvas"); c.width = bmp.width; c.height = bmp.height;
+  const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(bmp, 0, 0);
+  return g.getImageData(0, 0, c.width, c.height).data;
+})());
+async function record(o) {
+  if (whole) return new DataView(await whole, o, REC);
+  const r = await fetch(D + "inspect.bin", { headers: { Range: `bytes=${o}-${o + REC - 1}` } });
+  if (!r.ok) throw new Error("inspect.bin HTTP " + r.status);
+  if (r.status === 206) {
+    const b = await r.arrayBuffer();
+    if (b.byteLength !== REC) throw new Error("inspect.bin range length");
+    return new DataView(b);
+  }
+  whole = r.arrayBuffer().catch((e) => { whole = null; throw e; });  // server ignored Range: cache the Promise so later clicks share it and a failure can retry; concurrent clicks before this first response each start their own download
+  return new DataView(await whole, o, REC);
+}
+
+const thrNow = () => Number($("thr").value);
+const kIndex = (t) => Math.round((t - T0) / TSTEP);
+
+// ---------- inspect ----------
+const f = (v, d) => v.toFixed(d);
+function view(b, t) {
+  // everything below follows baseline.py: rho = DN*0.0001; NBR = (nir-swir2)/(nir+swir2); dNBR = NBR_pre - NBR_post
+  const o = { inside: true, lat: b.lat, lon: b.lon, col: b.col, row: b.row, srcRow: b.v[0], srcCol: b.v[1], threshold: t };
+  const fl = b.v[8] & 255, sc = b.scale;  // flags low byte; high byte is k
+  o.zero = b.v.slice(2, 8).some((x) => !x);  // DN 0 = no data: reflectance and NBR not meaningful
+  o.half = o.srcCol < b.splitCol ? "west" : "east";
+  o.reflectance = {
+    pre: { red: b.v[2] * sc, nir: b.v[3] * sc, swir22: b.v[4] * sc },
+    post: { red: b.v[5] * sc, nir: b.v[6] * sc, swir22: b.v[7] * sc },
+  };
+  o.scored = !!(fl & 1);
+  const truth = !!(fl & 2), amb = !!(fl & 4);
+  o.scar = truth && amb ? "yes (Aug–Oct), also in a Jul/Nov scar: excluded" : truth ? "yes (Aug–Oct)" : amb ? "excluded (Jul or Nov)" : "no";
+  const why = [];
+  if (!(fl & 8)) why.push("cloud, shadow or other SCL class on 13 Jul");
+  if (!(fl & 16)) why.push("cloud, shadow or other SCL class on 26 Oct");
+  if ((fl & 24) === 24 && (!b.v[3] || !b.v[4] || !b.v[6] || !b.v[7])) why.push("zero NIR or SWIR2 value");
+  if (amb) why.push("QLD scar in Jul or Nov (ambiguous dates)");
+  o.reason = o.scored ? null : (why.join("; ") || "dNBR undefined");
+  if (o.scored) {
+    o.nbrPre = (b.v[3] - b.v[4]) / (b.v[3] + b.v[4]);
+    o.nbrPost = (b.v[6] - b.v[7]) / (b.v[6] + b.v[7]);
+    o.dnbr = o.nbrPre - o.nbrPost;
+    o.burnt = b.k > kIndex(t);  // k = number of slider thresholds that dNBR exceeds
+    o.agreement = o.burnt ? (truth ? "hit" : "false alarm") : (truth ? "miss" : "correct reject");
+    if (o.half === "west") o.agreement += " (training half)";
+    o.status = o.burnt ? `burnt: dNBR above ${f(t, 2)}` : `not burnt: dNBR not above ${f(t, 2)}`;
+  } else {
+    o.nbrPre = o.nbrPost = o.dnbr = null; o.burnt = null; o.agreement = null; o.status = null;
+  }
+  return o;
+}
+
+const NA = "n/a";
+let announceT = 0;
+function renderPanel(o) {
+  const dl = $("inspectDl");
+  let rows;
+  if (!o.inside) rows = [["Status", "outside scene"]];
+  else {
+    const rf = (r) => o.zero ? NA : `red ${f(r.red, 4)}, NIR ${f(r.nir, 4)}, SWIR2 ${f(r.swir22, 4)}` + (o.scored ? "" : " (masked)");
+    const half = o.half + (o.half === "west" ? " (training half)" : " (scored half)");
+    rows = [
+      ["Centre", `${f(o.lat, 5)}, ${f(o.lon, 5)}`],
+      ["Display cell", `col ${o.col}, row ${o.row} (~49 m)`],
+      ["Source pixel", `row ${o.srcRow}, col ${o.srcCol} (10 m, UTM 54S); ${half}`],
+      ["Pre, 13 Jul", rf(o.reflectance.pre)],
+      ["Post, 26 Oct", rf(o.reflectance.post)],
+      ["Reflectance", "BOA, DN × 0.0001"],
+      ["NBR pre", o.scored && !o.zero ? f(o.nbrPre, 3) : NA],
+      ["NBR post", o.scored && !o.zero ? f(o.nbrPost, 3) : NA],
+      ["dNBR", o.scored ? f(o.dnbr, 3) : NA],
+      [`Threshold ${f(o.threshold, 2)}`, o.scored ? o.status : NA],
+      ["QLD scar", o.scar],
+      ["Scored", o.scored ? "yes" : "no: " + o.reason],
+      ["Agreement", o.scored ? o.agreement : NA],
+    ];
+  }
+  const sum = !o.inside ? "Outside scene" : o.scored ? [o.agreement, o.burnt ? "burnt" : "not burnt"].join(", ") : "Not scored: " + o.reason;
+  clearTimeout(announceT); announceT = setTimeout(() => { $("inspectStatus").textContent = sum; }, 500);  // debounced for screen readers
+  dl.replaceChildren(...rows.flatMap(([k, v]) => {
+    const dt = document.createElement("dt"), dd = document.createElement("dd");
+    dt.textContent = k; dd.textContent = v; return [dt, dd];
+  }));
+}
+
+let last = null, rect = null, mapRef = null, vecRenderer = null;
+async function inspect(lat, lon, opts = {}) {
+  const m = await getMeta(), g = m.grid;
+  const p = merc(lat, lon);
+  const col = Math.floor((p.x - g.x0) / g.cell), row = Math.floor((g.y0 - p.y) / g.cell);
+  let o;
+  if (col < 0 || col >= g.W || row < 0 || row >= g.H) {
+    o = { inside: false };
+  } else {
+    const dv = await record((row * g.W + col) * REC);
+    const v = Array.from({ length: 9 }, (_, i) => dv.getUint16(i * 2, true));
+    if (v[8] & 32) o = { inside: false };
+    else {
+      const c = unmerc(g.x0 + (col + 0.5) * g.cell, g.y0 - (row + 0.5) * g.cell);
+      const b = { lat: c.lat, lon: c.lon, col, row, v, k: v[8] >> 8, scale: m.scale, splitCol: m.split.col,
+        corners: [unmerc(g.x0 + col * g.cell, g.y0 - (row + 1) * g.cell), unmerc(g.x0 + (col + 1) * g.cell, g.y0 - row * g.cell)] };
+      o = view(b, thrNow());
+      if (!opts.silent) last = b;
+    }
+  }
+  if (!opts.silent) {
+    renderPanel(o);
+    if (mapRef) {
+      if (rect) { rect.remove(); rect = null; }
+      if (last && o.inside) {
+        const [a, c] = last.corners;
+        rect = L.rectangle([[a.lat, a.lon], [c.lat, c.lon]], { color: "#ffffff", weight: 2, fill: false, interactive: false, renderer: vecRenderer }).addTo(mapRef);
+      }
+    }
+    if (!o.inside) last = null;
+  }
+  return o;
+}
+window.scarlineInspect = (lat, lon, opts) => inspect(lat, lon, opts).catch((e) => {
+  if (!opts || !opts.silent) { const m = `Inspection data could not be loaded (${e.message}). Serve this page over http.`; $("inspectDl").replaceChildren(Object.assign(document.createElement("dd"), { textContent: m })); $("inspectStatus").textContent = m; }
+  return null;
+});
+$("thr").addEventListener("input", () => { if (last) renderPanel(view(last, thrNow())); });  // threshold changes re-judge the inspected cell
+
+// ---------- map ----------
+async function initMap() {
+  const L = window.L;
+  const msg = $("mapmsg");
+  if (!L) { msg.textContent = "The map library could not be loaded from vendor/leaflet/. The scores on this page do not depend on it."; return; }
+  let m;
+  try { m = await getMeta(); } catch { msg.textContent = "Map data could not be loaded. Serve this page over http."; return; }
+  msg.remove();
+  const g = m.grid;
+  const sw = unmerc(g.x0, g.y0 - g.H * g.cell), ne = unmerc(g.x0 + g.W * g.cell, g.y0);
+  const gb = L.latLngBounds([sw.lat, sw.lon], [ne.lat, ne.lon]);  // exact extent of the 3857 display grid
+  const map = L.map("lmap", {
+    maxZoom: 15, preferCanvas: true, keyboard: true, maxBoundsViscosity: 1, scrollWheelZoom: false,
+    zoomAnimation: !reduce, fadeAnimation: !reduce, markerZoomAnimation: !reduce,
+  });
+  mapRef = map;
+  // wheel zoom only after a click/tap on the map; off again on blur or page scroll
+  const mapEl = map.getContainer(), wheelOff = () => map.scrollWheelZoom.disable();
+  map.on("click", () => map.scrollWheelZoom.enable());
+  mapEl.addEventListener("focusout", wheelOff);
+  window.addEventListener("scroll", wheelOff, { passive: true });
+  map.fitBounds(gb);
+  map.setMinZoom(map.getZoom() - 1);
+  map.setMaxBounds(gb.pad(0.08));
+  map.attributionControl.addAttribution("Contains modified Copernicus Sentinel data 2022 | Fire scars © State of Queensland (DES) 2022, CC BY 4.0");
+  L.control.scale({ imperial: false }).addTo(map);
+  map.createPane("vec").style.zIndex = 450;  // vectors above the image overlays
+  vecRenderer = L.canvas({ pane: "vec" });
+  const ct = map.getContainer();
+  const wrap = ct.parentElement;
+  ct.addEventListener("focus", () => wrap.classList.add("kbd"));
+  ct.addEventListener("blur", () => wrap.classList.remove("kbd"));
+  ct.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === ct) { const c = map.getCenter(); window.scarlineInspect(c.lat, c.lng); } });
+  map.on("click", (e) => window.scarlineInspect(e.latlng.lat, e.latlng.lng));
+
+  // scenes
+  const scenes = {};
+  let sceneNow = "post";
+  const setScene = (name) => {
+    sceneNow = name;
+    for (const [k, l] of Object.entries(scenes)) if (k !== name) l.remove();
+    if (name !== "none") {
+      scenes[name] ??= L.imageOverlay(D + `map_${name}.jpg`, gb, { zIndex: 1, interactive: false, alt: "" });
+      scenes[name].addTo(map);
+    }
+    document.querySelectorAll("[data-mscene]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mscene === name)));
+  };
+  document.querySelectorAll("[data-mscene]").forEach((b) => b.addEventListener("click", () => setScene(b.dataset.mscene)));
+
+  // scar outlines and split line
+  const show = { dnbr: true, truth: true, amb: false, split: true };
+  const layers = {};
+  fetch(D + "scars.json").then((r) => r.json()).then((gj) => {
+    const mk = (cls, style) => L.geoJSON(gj, { filter: (x) => x.properties.cls === cls, interactive: false, renderer: vecRenderer, style: () => ({ ...style, fill: false, interactive: false }) });
+    const CASE = "#14181d";  // dark casing keeps the white line visible on pale ground
+    layers.truth = L.layerGroup([mk("truth", { color: CASE, weight: 3.5 }), mk("truth", { color: "#ffffff", weight: 1.5 })]);
+    layers.amb = L.layerGroup([mk("ambiguous", { color: CASE, weight: 3.5, dashArray: "5 5" }), mk("ambiguous", { color: "#ffffff", weight: 1.5, dashArray: "5 5" })]);
+    sync("truth"); sync("amb");
+  }).catch(() => {});
+  const ll = m.split.line_latlon;
+  const mid = [ll[0][0] + (ll[1][0] - ll[0][0]) * 0.1, ll[0][1] + (ll[1][1] - ll[0][1]) * 0.1];
+  layers.split = L.layerGroup([
+    L.polyline(ll, { color: "#ffffff", weight: 2.5, dashArray: "1 7", lineCap: "round", interactive: false, renderer: vecRenderer }),
+    L.tooltip({ permanent: true, direction: "center", className: "splitlabel", interactive: false }).setLatLng(mid).setContent("threshold chosen west | scored east"),
+  ]);
+
+  // dNBR layer: repainted from map_k.png (R = k, G = flags) so one file serves every threshold
+  const eff = () => Math.min(Number($("mOp").value), map.getZoom() >= 14 ? 0.45 : 1);  // slider value, capped at high zoom
+  let dLayer = null, dUrl = null, painting = false, dirty = false, cv = null, img = null;
+  const ASH = [92, 106, 119], RUST = [194, 80, 28], HATCH = [[223, 229, 234], [60, 66, 84]];
+  async function paintOnce() {
+    const kd = await getK();
+    const t = thrNow(), idx = kIndex(t);
+    if (!cv) { cv = document.createElement("canvas"); cv.width = g.W; cv.height = g.H; img = cv.getContext("2d").createImageData(g.W, g.H); }
+    const out = img.data;
+    for (let i = 0; i < kd.length; i += 4) {
+      const px = i >> 2, k = kd[i], fl = kd[i + 1];
+      let c, a;
+      if (fl & 32) { out[i + 3] = 0; continue; }                 // outside the scene
+      else if (!(fl & 1)) { c = HATCH[((((px % g.W) - ((px / g.W) | 0)) % 6 + 6) % 6) < 3 ? 0 : 1]; a = 255; }  // not scored: diagonal hatch
+      else if (k > idx) { c = RUST; a = 255; }  // above threshold: signal colour
+      else { c = ASH; a = 70; }                 // below: faint grey
+      out[i] = c[0]; out[i + 1] = c[1]; out[i + 2] = c[2]; out[i + 3] = a;
+    }
+    cv.getContext("2d").putImageData(img, 0, 0);
+    const blob = await new Promise((res) => cv.toBlob(res, "image/png"));
+    const url = URL.createObjectURL(blob), old = dUrl;
+    dUrl = url;
+    if (!dLayer) {
+      dLayer = L.imageOverlay(url, gb, { zIndex: 3, interactive: false, opacity: eff(), alt: "" });
+      if (show.dnbr) dLayer.addTo(map);
+    } else {
+      const el = dLayer.getElement();
+      if (el && old) el.addEventListener("load", () => URL.revokeObjectURL(old), { once: true });
+      else if (old) URL.revokeObjectURL(old);
+      dLayer.setUrl(url);
+    }
+  }
+  async function paint() {  // one repaint in flight; later requests collapse into one follow-up
+    dirty = true;
+    if (painting) return;
+    painting = true;
+    try { while (dirty) { dirty = false; await paintOnce(); } } catch { /* leave the previous paint */ } finally { painting = false; }
+  }
+  function sync(key) {
+    const on = show[key];
+    if (key === "dnbr") { if (on) { if (dLayer) dLayer.addTo(map); paint(); } else if (dLayer) dLayer.remove(); }
+    else if (layers[key]) { if (on) layers[key].addTo(map); else layers[key].remove(); }
+    const b = document.querySelector(`[data-mlayer="${key}"]`);
+    if (b) b.setAttribute("aria-pressed", String(on));
+  }
+  document.querySelectorAll("[data-mlayer]").forEach((b) => b.addEventListener("click", () => { show[b.dataset.mlayer] = !show[b.dataset.mlayer]; sync(b.dataset.mlayer); }));
+
+  // legend: grey below the threshold, rust above, tick at the threshold
+  const thr = $("thr");
+  const legend = () => {
+    const t = thrNow(), p = ((t - T0) / 0.8) * 100;
+    $("mThrVal").textContent = t.toFixed(2);
+    $("mLo").style.width = p + "%";
+    $("mTick").style.left = p + "%";
+    const lab = $("mTickLab"); lab.textContent = "threshold " + t.toFixed(2); lab.style.left = Math.min(88, Math.max(12, p)) + "%";
+  };
+  thr.addEventListener("input", () => { legend(); if (show.dnbr) paint(); });
+  $("mOp").addEventListener("input", (e) => { const v = Number(e.target.value); $("mOpVal").textContent = Math.round(v * 100) + "%"; if (dLayer) dLayer.setOpacity(eff()); });
+  map.on("zoomend", () => { if (dLayer) dLayer.setOpacity(eff()); });
+  legend();
+  setScene("post");
+  sync("split");
+  paint();
+}
+
+const sec = $("map");
+if ("IntersectionObserver" in window) {
+  const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); initMap(); } }, { rootMargin: "300px" });
+  io.observe(sec);
+} else initMap();
+
+// ---------- scores, readout, six blocks ----------
+const fmt = (v, d = 2) => (v === null || v === undefined ? "n/a" : Number(v).toFixed(d));
+const pct = (v) => (v === null || v === undefined ? "n/a" : (100 * v).toFixed(0) + "%");
+const count = (v) => (v === null || v === undefined ? "n/a" : Number(v).toLocaleString("en-AU"));
+let metrics = null;
+function updateReadout() {
+  if (!metrics) return;
+  const t = thrNow();
+  // exact sweep value from baseline_metrics.json: (tp+fp) / scored east pixels; the sweep stops at 0.84
+  const sw = metrics.sweep.find((r) => Math.abs(r.threshold - t) < 1e-9);
+  $("rBurnt").textContent = sw ? pct((sw.test.tp + sw.test.fp) / metrics.scored_pixels.test_east) : "n/a";
+  $("rScar").textContent = pct(metrics.scar_fraction.test_east);
+  const at = Math.abs(t - metrics.threshold) < 0.006;  // F1 and IoU only at the threshold chosen on the west half
+  $("rIoU").textContent = at ? fmt(metrics.test_east.iou) : "n/a";
+  $("rF1").textContent = at ? fmt(metrics.test_east.f1) : "n/a";
+}
+$("thr").addEventListener("input", updateReadout);
+(async () => {
+  try {
+    const get = async (p) => { const r = await fetch(D + p); if (!r.ok) throw new Error(p); return r.json(); };
+    const [m, cv] = await Promise.all([get("baseline_metrics.json"), get("block_cv.json")]);
+    metrics = m;
+    const rows = [["Model, threshold " + m.threshold.toFixed(2), m.test_east], ["Everything burnt", m.baseline_all_burnt_test_east], ["Fixed threshold 0.27", m["baseline_threshold_0.27_test_east"]]];
+    $("resTable").innerHTML = rows.map(([name, r]) => `<tr><td>${name}</td><td>${fmt(r.f1, 3)}</td><td>${fmt(r.iou, 3)}</td><td>${count(r.tp)}</td><td>${count(r.fp)}</td><td>${count(r.fn)}</td></tr>`).join("");
+    $("pooledM").textContent = fmt(cv.pooled_f1.model, 3);
+    $("pooledA").textContent = fmt(cv.pooled_f1.allburnt, 3);
+    $("pooled27").textContent = fmt(cv.pooled_f1.s27, 3);
+    $("blocks").innerHTML = Object.values(cv.blocks).map((b, i) => {
+      const a = b.allburnt_f1, mo = b.model_f1;
+      const bar = (a === null || mo === null) ? `<span class="small">n/a</span>` : `<div class="bar" role="img" aria-label="Block ${i + 1}: all-burnt F1 ${fmt(a, 3)}, model F1 ${fmt(mo, 3)}"><i style="width:${(a * 100).toFixed(1)}%"></i><b style="left:${(mo * 100).toFixed(1)}%"></b></div>`;
+      return `<div class="blockrow"><span>Block ${i + 1} (${pct(b.prevalence)} scar)</span>${bar}<span>${fmt(mo, 2)}</span></div>`;
+    }).join("");
+    updateReadout();
+  } catch (e) {
+    $("resTable").innerHTML = `<tr><td colspan="6">Scores could not be loaded. Serve this page over http.</td></tr>`;
+  }
+})();
+</script>
+</body>
+</html>

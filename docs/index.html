@@ -3,834 +3,192 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Scarline: Cape York burn scars</title>
-<meta name="description" content="Burn-scar change detection on Cape York from public Sentinel-2 data. A simple burn-index threshold does not beat 'everything burnt' here. Negative result, stated plainly.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@500;700;800&family=Manrope:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
-<script defer src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
-<script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-} }
-</script>
+<title>Scarline: spotting bushfire scars from space</title>
+<meta name="description" content="Can a simple method spot bushfire scars in satellite photos? On Cape York it did not work. A plain-language look at why.">
+<link rel="stylesheet" href="site.css">
 <style>
-  :root {
-    --ground: #070b14;
-    --ground-2: #0c1322;
-    --line: #223049;
-    --line-strong: #5a6a88;
-    --chalk: #e8edf5;
-    --muted: #a3afc4;
-    --ember: #ff7a1a;
-    --amber: #ffb547;
-    --display: "Oxanium", "Manrope", system-ui, sans-serif;
-    --body: "Manrope", system-ui, sans-serif;
-  }
-  * { box-sizing: border-box; }
-  button, input, select { font-family: inherit; line-height: 1.4; }
-  html, body { margin: 0; background: var(--ground); color: var(--chalk); font: 400 17px/1.6 var(--body); }
-  body { -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-  ::selection { background: var(--line-strong); color: var(--chalk); }
-  :focus-visible { outline: 2px solid var(--chalk); outline-offset: 3px; }
-
-  #scene { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; display: block; }
-  #fallback { display: none; position: fixed; inset: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 0; }
-  .no-webgl #fallback { display: block; opacity: .55; }
-
-  /* sections let pointer input reach the canvas; panels and controls take it back */
-  main { position: relative; z-index: 1; pointer-events: none; }
-  section { min-height: 100vh; padding: 12vh 6vw; display: flex; flex-direction: column; justify-content: center; }
-  .panel { pointer-events: auto; max-width: 36rem; background: rgba(7, 11, 20, .86); border: 1px solid var(--line); border-radius: 14px; padding: 2rem 2.2rem; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-  h1, h2, h3 { font-family: var(--display); font-weight: 800; letter-spacing: -0.02em; line-height: 1.32; margin: 0 0 .6em; }
-  h1 { font-size: clamp(2.2rem, 4.6vw, 4.2rem); }
-  h2 { font-size: clamp(1.8rem, 3.6vw, 3rem); }
-  h3 { font-size: 1.25rem; letter-spacing: 0; }
-  p { margin: 0 0 1em; max-width: 62ch; }
-  .lede { font-size: 1.15rem; color: var(--chalk); }
-  .muted { color: var(--muted); }
-
-  .banner { margin: 0 0 1.4rem; max-width: 20ch; font-family: var(--display); font-weight: 800; font-size: clamp(1.9rem, 3.8vw, 3.2rem); line-height: 1.32; letter-spacing: -0.02em; color: var(--chalk); }
-  .banner-top { position: fixed; top: 0; left: 0; right: 0; z-index: 3; background: rgba(7,11,20,.92); border-bottom: 1px solid var(--line); padding: .65rem 6vw; font-family: var(--display); font-weight: 500; font-size: .95rem; line-height: 1.4; letter-spacing: .01em; color: var(--muted); }
-  .banner-top b { color: var(--chalk); font-weight: 700; }
-
-  .cta { display: inline-flex; align-items: center; gap: .5rem; margin-top: 1.4rem; font: 700 .95rem/1.4 var(--display); letter-spacing: .02em; color: var(--chalk); background: transparent; padding: .75rem 1.2rem; border-radius: 6px; border: 1px solid var(--line-strong); text-decoration: none; cursor: pointer; }
-  .cta:hover { border-color: var(--chalk); }
-
-  .dial { display: grid; gap: .8rem; }
-  .dial label { font: 700 .95rem/1.4 var(--display); display: flex; justify-content: space-between; }
-  .dial input[type=range] { width: 100%; accent-color: var(--chalk); height: 28px; }
-  .readout { display: grid; grid-template-columns: repeat(4, 1fr); gap: .6rem; margin-top: .8rem; }
-  .readout div { border-top: 2px solid var(--line); padding-top: .5rem; }
-  .readout span { display: block; font: 700 1.5rem/1.4 var(--display); font-variant-numeric: tabular-nums; }
-  .readout small { color: var(--muted); font-size: .8rem; }
-
-  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; margin-top: 1rem; font-size: .95rem; }
-  th, td { text-align: right; padding: .6rem .5rem; border-bottom: 1px solid var(--line); }
-  th:first-child, td:first-child { text-align: left; }
-  th { font: 700 .8rem/1.4 var(--display); color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
-
-  .blocks { display: grid; gap: .55rem; margin-top: 1rem; }
-  .blockrow { display: grid; grid-template-columns: 6.5rem 1fr 4rem; gap: .8rem; align-items: center; font-size: .9rem; }
-  .bar { position: relative; height: 12px; background: var(--ground-2); border-radius: 6px; overflow: hidden; }
-  .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ember); border-radius: 6px; }
-  .bar b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--chalk); }
-
-  ul { padding-left: 1.2rem; margin: .4rem 0 1rem; }
-  li { margin-bottom: .45rem; }
-  footer { position: relative; z-index: 1; padding: 4rem 6vw 6rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; background: var(--ground); }
-  footer a { color: var(--amber); }
-
-  .legend { display: flex; align-items: center; gap: .6rem; font-size: .85rem; color: var(--muted); margin-top: 1rem; }
-  .ramp { width: 180px; height: 12px; border-radius: 6px; background: linear-gradient(90deg, #2a2f3a, #ff7a1a 60%, #ffb547); }
-
-  .toggle { pointer-events: auto; display: inline-flex; gap: .4rem; margin-top: 1rem; }
-  .toggle button { font: 700 .85rem/1.4 var(--display); color: var(--chalk); background: transparent; border: 1px solid var(--line-strong); border-radius: 999px; padding: .45rem .9rem; cursor: pointer; }
-  .toggle button[aria-pressed="true"] { background: var(--chalk); color: var(--ground); border-color: var(--chalk); }
-
-  /* ---- 2D map and inspect panel ---- */
-  #map .panel { max-width: 76rem; width: 100%; }
-  .leaflet-image-layer { image-rendering: pixelated; }
-  .leaflet-tile-pane { filter: grayscale(0.6) brightness(0.55) contrast(1.05); }
-  .mgroups { display: flex; flex-wrap: wrap; gap: .8rem 1.6rem; margin: 1rem 0; pointer-events: auto; }
-  .mgroups .toggle { margin-top: 0; flex-wrap: wrap; }
-  .glabel { display: block; margin-bottom: .35rem; font: 700 .75rem/1.4 var(--display); color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
-  .mctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem 2rem; margin-bottom: 1rem; }
-  .mapgrid { display: grid; grid-template-columns: minmax(0, 1fr) 21rem; gap: 1.2rem; align-items: start; }
-  .mapwrap { position: relative; }
-  #lmap { height: min(72vh, 680px); min-height: 380px; border: 1px solid var(--line); border-radius: 10px; }
-  .leaflet-container { background: var(--ground-2); color: var(--chalk); font: 500 .8rem/1.4 var(--body); }
-  .leaflet-container a { color: var(--chalk); }
-  .leaflet-container .leaflet-control-attribution { background: rgba(7,11,20,.85); color: var(--muted); }
-  .leaflet-bar a, .leaflet-bar a:hover { background: var(--ground); color: var(--chalk); border-color: var(--line); }
-  .leaflet-control-scale-line { background: rgba(7,11,20,.85); color: var(--chalk); border-color: var(--chalk); }
-  .leaflet-tooltip.splitlabel { background: rgba(7,11,20,.92); color: var(--chalk); border: 1px solid var(--line-strong); font: 700 .72rem/1.3 var(--display); box-shadow: none; }
-  .leaflet-tooltip.splitlabel::before { display: none; }
-  .xhair { display: none; position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; pointer-events: none; z-index: 500; border: 1px solid var(--chalk); border-radius: 50%; }
-  .mapwrap.kbd .xhair { display: block; }
-  .mapmsg { padding: 1rem; color: var(--muted); }
-  #inspect { border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; background: var(--ground-2); font-size: .88rem; }
-  #inspect h3 { font-size: 1rem; margin: 0 0 .6rem; }
-  #inspect dl { margin: 0; display: grid; grid-template-columns: 6.6rem minmax(0, 1fr); gap: .4rem .7rem; }
-  #inspect dt { color: var(--muted); }
-  #inspect dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-  .mlegend { display: grid; gap: .5rem; margin-top: 1rem; font-size: .85rem; color: var(--muted); }
-  .mramp { position: relative; height: 12px; border-radius: 6px; margin: .2rem 0 1.4rem; max-width: 26rem; }
-  .mramp i { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--chalk); }
-  .mramp span { position: absolute; top: 16px; font-size: .75rem; white-space: nowrap; transform: translateX(-50%); }
-  .mramp span:first-of-type { transform: none; }
-  .mramp span:last-of-type { transform: translateX(-100%); }
-  .lkeys { display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; }
-  .lkeys span { display: inline-flex; align-items: center; gap: .45rem; }
-  .sw { display: inline-block; width: 26px; height: 0; border-top: 2px solid var(--chalk); }
-  .sw.dash { border-top-style: dashed; }
-  .sw.dot { border-top-style: dotted; border-top-width: 3px; }
-  .sw.box { height: 12px; border: 0; background: repeating-linear-gradient(45deg, #96a0b4 0 3px, #3c4254 3px 6px); border-radius: 2px; width: 16px; }
-  .card3d { position: fixed; right: 1rem; bottom: 1rem; z-index: 4; max-width: 19rem; padding: .8rem 1rem; font-size: .82rem; line-height: 1.45; background: rgba(7,11,20,.95); border: 1px solid var(--line-strong); border-radius: 10px; pointer-events: auto; }
-  .card3d[hidden] { display: none; }
-  .card3d button { position: absolute; top: .2rem; right: .3rem; font-size: 1rem; background: none; border: 0; color: var(--muted); cursor: pointer; padding: .2rem .45rem; }
-  @media (max-width: 900px) { .mapgrid { grid-template-columns: minmax(0, 1fr); } }
-
-  @media (max-width: 640px) {
-    section { padding: 14vh 5vw; }
-    .readout { grid-template-columns: repeat(2, 1fr); }
-    .blockrow { grid-template-columns: 5rem 1fr 3.4rem; }
-    .banner-top { font-size: .8rem; }
-    #lmap { height: 62vh; }
-    .mramp { margin-bottom: 2.8rem; }
-    #mTickLab { top: 34px; }
-  }
+.honest { font: 400 1.35rem/1.45 var(--head); margin: 0 0 .8rem; }
+.pair-wrap { margin: 2.2rem auto 0; }
+.flip { margin: 0 0 1rem; }
+.plates { display: grid; gap: 1.5rem; }
+.plate { margin: 0; }
+.pic { position: relative; border: 1px solid var(--ink); padding: 6px; background: var(--paper); }
+.pic img { display: block; width: 100%; height: auto; }
+.ov { position: absolute; left: 6px; top: 6px; width: calc(100% - 12px); height: calc(100% - 12px); }
+.plate figcaption { font-size: 1.125rem; padding-top: .5rem; border-top: 1px solid var(--rule); margin-top: .4rem; }
+.grid { display: block; color: var(--ink-2); font-size: 1rem; margin-top: .2rem; letter-spacing: .02em; }
+.flip { display: none; }
+.js .flip { display: inline-block; }
+@media (max-width: 899px) {
+  .js .plates #plate1, .js .plates #plate2 { grid-area: 1 / 1; transition: opacity 150ms linear, visibility 150ms linear; }
+  .js .plates #plate3 { grid-row: 2; }
+  .js .plates[data-show="pre"] #plate2, .js .plates[data-show="post"] #plate1 { opacity: 0; visibility: hidden; }
+}
+@media (min-width: 900px) {
+  .plates { grid-template-columns: repeat(3, 1fr); }
+  .js .flip { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .plates .plate { transition: none !important; } }
+.where { display: grid; grid-template-columns: 1fr 9rem; gap: 1.2rem; align-items: start; }
+.where svg { width: 100%; height: auto; }
+@media (max-width: 520px) { .where { grid-template-columns: 1fr; } .where svg { max-width: 9rem; } }
+.bars { margin: 1.2rem 0; }
+.bar-row { margin: 0 0 1rem; }
+.bar-row p { margin: 0 0 .25rem; font-weight: 700; }
+.track { position: relative; height: 22px; border: 1px solid var(--ink); background: var(--paper); }
+.track i { position: absolute; inset: 0 auto 0 0; background: var(--ink); }
+.track.guess i { background: var(--rule); }
+.scale { display: flex; justify-content: space-between; font-size: 1rem; color: var(--ink-2); }
+.close { font: 700 1.2rem/1.4 var(--head); margin-top: 2.4rem; }
 </style>
 </head>
 <body>
-<canvas id="scene" aria-hidden="true"></canvas>
-<img id="fallback" alt="Post-fire false-colour scene of Cape York; burnt ground reads dark" src="data/post.jpg">
-
-<div class="banner-top" role="note"><b>Negative result.</b> A simple burn-index threshold does not beat &ldquo;everything burnt&rdquo; on this area.</div>
-
+<header class="frame"><div>
+<a class="site" href="index.html">Scarline</a>
+<nav aria-label="Pages"><span>Pages</span><a href="index.html" aria-current="page">Home</a><a href="specialists.html">Specialists</a><a href="#sources">Sources</a></nav>
+</div></header>
 <main>
-  <section id="top">
-    <div class="panel">
-      <p class="banner">Negative result: a simple burn-index threshold does not beat &lsquo;everything burnt&rsquo;.</p>
-      <h1>Cape York, after the fire.</h1>
-      <p class="lede">Public Sentinel-2 imagery, a single burn index and Queensland&rsquo;s 2022 fire-scar map. The terrain is real, the scars are real, and the scores are reported as measured, including the ones that lose.</p>
-      <a class="cta" href="#develop">Watch the burn develop &darr;</a>
-    </div>
-  </section>
+<div class="col">
+<h1>Spotting bushfire scars from space</h1>
+<p class="honest">Our simple method didn&rsquo;t work here: just guessing that the whole area burned scored about as well, or better.</p>
+<p><span class="tag">Negative result</span></p>
+<details><summary>What does this mean?</summary>
+<p>A negative result means a test did not give the answer we hoped for. We hoped our method would beat a lazy guess. It did not. That is still worth knowing.</p>
+</details>
+</div>
 
-  <section id="develop">
-    <div class="panel">
-      <h2>Develop the scene.</h2>
-      <p>Scroll to move from the 13 July scene to the 26 October scene. The landscape is the same tile of Cape York; the change is what the satellite recorded between the two dates.</p>
-      <p class="muted">Pre-fire: 13 July 2022, tile cloud cover 0.08%. Post-fire: 26 October 2022, tile cloud cover 0.71%. False colour (SWIR&thinsp;2, NIR, red): burnt ground reads dark.</p>
-      <div class="toggle" role="group" aria-label="Scene">
-        <button type="button" data-scene="pre" aria-pressed="true">13 Jul</button>
-        <button type="button" data-scene="post" aria-pressed="false">26 Oct</button>
-      </div>
-    </div>
-  </section>
+<div class="wide pair-wrap">
+<button type="button" class="flip" id="flip" data-show="july">Showing July (before). Show October (after)</button>
+<div class="plates" id="plates" data-show="pre">
+<figure class="plate" id="plate1">
+<p class="plate-no">Plate 1: Before, July 2022</p>
+<div class="pic"><img src="data/map_pre.jpg" width="1024" height="1154" alt="Satellite picture of the area in July 2022, before the fires, in false colour.">
+<svg class="ov" viewBox="0 0 1024 1154" aria-hidden="true" focusable="false">
+<rect x="24" y="1058" width="260" height="92" fill="#dfe5ea" fill-opacity=".92"/>
+<path d="M40 1112 H238 M40 1100 V1124 M139 1106 V1118 M238 1100 V1124" stroke="#14181d" stroke-width="4" fill="none"/>
+<rect x="40" y="1108" width="99" height="8" fill="#14181d"/>
+<text x="40" y="1090" font-size="34" fill="#14181d" font-family="Arial, sans-serif">0</text>
+<text x="238" y="1090" font-size="34" fill="#14181d" font-family="Arial, sans-serif" text-anchor="end">10 km</text>
+<rect x="936" y="24" width="64" height="132" fill="#dfe5ea" fill-opacity=".92"/>
+<path d="M968 44 L986 108 L968 96 L950 108 Z" fill="#14181d"/>
+<text x="968" y="144" font-size="34" font-weight="700" fill="#14181d" font-family="Arial, sans-serif" text-anchor="middle">N</text>
+</svg></div>
+<figcaption>Plate 1: July 2022, before the fires.<span class="grid">142.0&ndash;142.5&deg;E, 13.0&ndash;13.5&deg;S &middot; colours chosen so burnt ground stands out</span></figcaption>
+</figure>
+<figure class="plate" id="plate2">
+<p class="plate-no">Plate 2: After, October 2022</p>
+<div class="pic"><img src="data/map_post.jpg" width="1024" height="1154" alt="Satellite picture of the same area in October 2022, after the fires, in false colour.">
+<svg class="ov" viewBox="0 0 1024 1154" aria-hidden="true" focusable="false">
+<rect x="24" y="1058" width="260" height="92" fill="#dfe5ea" fill-opacity=".92"/>
+<path d="M40 1112 H238 M40 1100 V1124 M139 1106 V1118 M238 1100 V1124" stroke="#14181d" stroke-width="4" fill="none"/>
+<rect x="40" y="1108" width="99" height="8" fill="#14181d"/>
+<text x="40" y="1090" font-size="34" fill="#14181d" font-family="Arial, sans-serif">0</text>
+<text x="238" y="1090" font-size="34" fill="#14181d" font-family="Arial, sans-serif" text-anchor="end">10 km</text>
+<rect x="936" y="24" width="64" height="132" fill="#dfe5ea" fill-opacity=".92"/>
+<path d="M968 44 L986 108 L968 96 L950 108 Z" fill="#14181d"/>
+<text x="968" y="144" font-size="34" font-weight="700" fill="#14181d" font-family="Arial, sans-serif" text-anchor="middle">N</text>
+</svg></div>
+<figcaption>Plate 2: October 2022, after.<span class="grid">142.0&ndash;142.5&deg;E, 13.0&ndash;13.5&deg;S &middot; colours chosen so burnt ground stands out</span></figcaption>
+</figure>
+<figure class="plate" id="plate3">
+<p class="plate-no">Plate 3: Change</p>
+<div class="pic"><img src="data/home_change.png" width="1024" height="1154" alt="Grey satellite picture with orange tint where the ground changed. White outlines mark the official burnt map. Most of the picture is orange.">
+<svg class="ov" viewBox="0 0 1024 1154" aria-hidden="true" focusable="false">
+<rect x="24" y="1058" width="260" height="92" fill="#dfe5ea" fill-opacity=".92"/>
+<path d="M40 1112 H238 M40 1100 V1124 M139 1106 V1118 M238 1100 V1124" stroke="#14181d" stroke-width="4" fill="none"/>
+<rect x="40" y="1108" width="99" height="8" fill="#14181d"/>
+<text x="40" y="1090" font-size="34" fill="#14181d" font-family="Arial, sans-serif">0</text>
+<text x="238" y="1090" font-size="34" fill="#14181d" font-family="Arial, sans-serif" text-anchor="end">10 km</text>
+<rect x="936" y="24" width="64" height="132" fill="#dfe5ea" fill-opacity=".92"/>
+<path d="M968 44 L986 108 L968 96 L950 108 Z" fill="#14181d"/>
+<text x="968" y="144" font-size="34" font-weight="700" fill="#14181d" font-family="Arial, sans-serif" text-anchor="middle">N</text>
+</svg></div>
+<figcaption>Plate 3: The orange areas are where the satellite saw the ground change. The white outlines are the official map of what burned.<span class="grid">142.0&ndash;142.5&deg;E, 13.0&ndash;13.5&deg;S</span></figcaption>
+</figure>
+</div>
+</div>
 
-  <section id="burn">
-    <div class="panel">
-      <h2>Where the index says it burned.</h2>
-      <p>Burn index change (dNBR) is the drop in NBR between the two scenes. Higher values mean more change. Drag the threshold: every pixel above it is marked burnt, and the counts update live.</p>
-      <div class="dial">
-        <label for="thr"><span>Threshold</span><span id="thrVal">0.21</span></label>
-        <input id="thr" type="range" min="0.05" max="0.85" step="0.01" value="0.21">
-      </div>
-      <div class="readout">
-        <div><span id="rIoU">&ndash;</span><small>IoU vs QLD scars, east half</small></div>
-        <div><span id="rF1">&ndash;</span><small>F1 vs QLD scars, east half</small></div>
-        <div><span id="rBurnt">&ndash;</span><small>East half marked burnt</small></div>
-        <div><span id="rScar">&ndash;</span><small>East half, QLD scar share</small></div>
-      </div>
-      <div class="legend"><span>Unburnt</span><span class="ramp" aria-hidden="true"></span><span>Burnt, high change</span></div>
-      <p class="muted" style="margin-top:1rem">IoU and F1 are shown only at 0.21, the threshold chosen on the west half. Showing them for other thresholds would mean picking a threshold by its test score. Pixels with cloud or shadow are excluded.</p>
-    </div>
-  </section>
+<div class="col">
+<section>
+<h2>1 The place</h2>
+<div class="where">
+<p>This is bushland near the tip of Cape York in northern Queensland, about 55 km across.</p>
+<svg viewBox="0 0 200 166" role="img" aria-labelledby="aus-t"><title id="aus-t">Outline of Australia with a dot on Cape York, in the north east.</title>
+<path d="M90.2 13.9 L98.4 8.2 L119.0 13.0 L115.2 19.2 L112.8 26.4 L120.0 32.2 L132.0 38.9 L140.6 33.6 L142.1 17.8 L146.4 5.8 L150.2 22.6 L159.8 26.4 L164.6 44.6 L177.1 53.8 L185.8 62.4 L197.8 76.8 L199.7 91.7 L194.4 110.4 L186.2 124.8 L181.9 134.4 L165.6 141.6 L157.4 138.2 L141.6 138.7 L134.4 133.9 L127.2 123.4 L122.4 124.8 L124.8 112.8 L115.2 122.4 L105.6 111.8 L92.2 105.6 L67.2 109.4 L55.7 117.1 L38.4 117.1 L28.3 122.9 L14.9 119.0 L17.8 108.0 L13.9 96.0 L6.7 80.6 L8.6 61.0 L21.6 53.3 L33.6 50.4 L45.6 45.6 L49.0 37.0 L60.0 32.6 L67.2 21.6 L84.0 25.9 L84.0 16.8 Z" fill="#d2dae1" stroke="#14181d" stroke-width="1.5" stroke-linejoin="round"/>
+<circle cx="145" cy="16.8" r="5" fill="#14181d"/><circle cx="145" cy="16.8" r="9" fill="none" stroke="#14181d" stroke-width="1"/>
+</svg>
+</div>
+</section>
 
-  <section id="map">
-    <div class="panel">
-      <h2>Inspect the map, cell by cell.</h2>
-      <p>Cape York, QLD, 142.0&ndash;142.5&deg;E, 13.0&ndash;13.5&deg;S. Click any cell to see the raw values behind the colour: reflectance on both dates, the burn index, the Queensland scar label and how the threshold treats it. Display cells are about 49 m across; each shows the single 10 m pixel at its centre.</p>
-      <p class="muted">Limits: imagery and labels come from the same sensor, the scenes are five months apart, and this is one area and one scene pair. A basemap from OpenStreetMap is shown by default and can be turned off with the Basemap button; its tile requests go to OSM servers, so visitor IP addresses reach OSM.</p>
-      <div class="mgroups">
-        <div><span class="glabel" id="gScene">Scene</span>
-          <div class="toggle" role="group" aria-labelledby="gScene">
-            <button type="button" data-mscene="pre" aria-pressed="false">13 Jul</button>
-            <button type="button" data-mscene="post" aria-pressed="true">26 Oct</button>
-            <button type="button" data-mscene="none" aria-pressed="false">None</button>
-          </div></div>
-        <div><span class="glabel" id="gLayers">Layers</span>
-          <div class="toggle" role="group" aria-labelledby="gLayers">
-            <button type="button" id="mBase" aria-pressed="true">Basemap</button>
-            <button type="button" data-mlayer="dnbr" aria-pressed="true">dNBR</button>
-            <button type="button" data-mlayer="truth" aria-pressed="true">QLD scars Aug&ndash;Oct</button>
-            <button type="button" data-mlayer="amb" aria-pressed="false">Scars Jul/Nov (dashed)</button>
-            <button type="button" data-mlayer="split" aria-pressed="true">Split line</button>
-          </div></div>
-      </div>
-      <div class="mctl">
-        <div class="dial"><label for="mThr"><span>Threshold</span><span id="mThrVal">0.21</span></label>
-          <input id="mThr" type="range" min="0.05" max="0.85" step="0.01" value="0.21"></div>
-        <div class="dial"><label for="mOp"><span>dNBR opacity</span><span id="mOpVal">70%</span></label>
-          <input id="mOp" type="range" min="0" max="1" step="0.05" value="0.7"></div>
-      </div>
-      <div class="mapgrid">
-        <div class="mapwrap">
-          <div id="lmap" role="region" aria-label="Map of Cape York burn scars. Arrow keys pan, plus and minus zoom, Enter inspects the cell at the centre."><div class="mapmsg" id="mapmsg">The map loads as you scroll to it.</div></div>
-          <div class="xhair" aria-hidden="true"></div>
-        </div>
-        <div id="inspect">
-          <h3>Cell inspector</h3>
-          <p id="inspectStatus" class="muted" aria-live="polite" style="margin:0 0 .6rem"></p>
-          <dl id="inspectDl"><dt>Status</dt><dd>Click the map, or focus it and press Enter, to inspect the centre cell.</dd></dl>
-        </div>
-      </div>
-      <div class="mlegend" role="group" aria-label="Map legend">
-        <div>dNBR above the threshold is ember to amber; below it is faint ash. The tick marks the threshold. Overlay fades at high zoom (45% at zoom 14+) so the basemap shows through.</div>
-        <div class="mramp" id="mRamp" aria-hidden="true"><i id="mTick"></i><span style="left:0">&le;0.05</span><span id="mTickLab"></span><span style="left:100%">&ge;0.85</span></div>
-        <div class="lkeys">
-          <span><i class="sw box"></i>Not scored (cloud, shadow, Jul/Nov scar, undefined)</span>
-          <span><i class="sw"></i>QLD scar, Aug&ndash;Oct</span>
-          <span><i class="sw dash"></i>QLD scar, Jul/Nov</span>
-          <span><i class="sw dot"></i>Split: threshold chosen west, scored east</span>
-        </div>
-      </div>
-      <p class="muted" style="margin-top:1rem;font-size:.85rem">Values come from the single 10 m pixel at the centre of a ~49 m display cell (SWIR&thinsp;2 and the cloud mask are native 20 m, resampled to 10 m). &ldquo;Scar&rdquo; means the Queensland Sentinel-2 fire-scar product, not a field check. Scar outlines on the map are simplified to about 50 m, and holes and parts under 1 ha are dropped. The inspect panel uses the full, unsimplified rasterised label, so the two can disagree near edges.</p>
-      <noscript><p class="muted">The interactive map needs JavaScript. The scene, the scores and the limits on this page are readable without it.</p></noscript>
-    </div>
-  </section>
+<section>
+<h2>2 What happened</h2>
+<p>Bushfires burned across this land in 2022, mostly in the dry months. Our first photo is from July, before the fires. Our second is from October, after.</p>
+</section>
 
-  <section id="results">
-    <div class="panel" style="max-width:48rem">
-      <h2>Scores, including the losing ones.</h2>
-      <p>The model is a single threshold. The trivial baseline marks every pixel burnt. Both are scored on the same east-half pixels.</p>
-      <table>
-        <thead><tr><th>Method</th><th>F1</th><th>IoU</th><th>True positives</th><th>False positives</th><th>Missed</th></tr></thead>
-        <tbody id="resTable"></tbody>
-      </table>
-      <h3 style="margin-top:2rem">Six blocks, each held out in turn</h3>
-      <p class="muted">Each block is scored with a threshold chosen on the other five. The bar is the all-burnt guess; the tick is the model. Labels show the share of each block that is scar.</p>
-      <div class="blocks" id="blocks"></div>
-      <p style="margin-top:1.4rem"><b>Pooled F1:</b> model <span id="pooledM"></span>, all-burnt <span id="pooledA"></span>, fixed 0.27 threshold <span id="pooled27"></span>. The model beats the guess on 4 of 6 blocks. That gap is not statistically significant.</p>
-    </div>
-  </section>
+<section>
+<h2>3 How a satellite sees a burn</h2>
+<p>A satellite sees more than we do. It also records infrared light, which our eyes cannot see. Burnt ground sends back infrared light differently from living plants.</p>
+<p>So we compare the July and October photos. A big change in infrared hints at a fire.</p>
+<details><summary>What does this mean?</summary>
+<p>Healthy leaves bounce back a lot of one kind of infrared, called near infrared. Burnt ground bounces back less of it. It bounces back more of a second kind, called shortwave infrared.</p>
+<p>Experts mix the two into one number called dNBR. A bigger dNBR means more change.</p>
+</details>
+</section>
 
-  <section id="why">
-    <div class="panel">
-      <h2>Why a simple threshold struggles here.</h2>
-      <ul>
-        <li><b>Most of the scene is scar.</b> 40% of the west half and 69% of the east half is scar in the labels, so &ldquo;everything burnt&rdquo; scores well by default.</li>
-        <li><b>The seasons do not match.</b> The pre-fire scene is five months before the post-fire scene. Ordinary dry-season change can look like burn.</li>
-        <li><b>The labels come from the same sensor.</b> Queensland&rsquo;s map is built from Sentinel-2, like the input. The score measures agreement with that map, not with the ground.</li>
-        <li><b>The blocks touch.</b> Neighbouring test blocks share borders, so they are not fully independent.</li>
-      </ul>
-      <h3 style="margin-top:1.6rem">Limits</h3>
-      <ul>
-        <li>One area, one fire season and one scene pair.</li>
-        <li>Labels are agency-derived and not hand-verified.</li>
-        <li>Gulf (tile 54KWF) was investigated and is not part of this result: its scars fall mostly in December, outside the label window.</li>
-      </ul>
-    </div>
-  </section>
+<section>
+<h2>4 What we found</h2>
+<p>We scored both ways of finding the burnt ground. The scale runs from 0 to 100. Higher is better.</p>
+<div class="bars">
+<div class="bar-row"><p>Our method: 75</p><div class="track" role="img" aria-label="Our method scored 75 out of 100"><i style="width:75%"></i></div></div>
+<div class="bar-row"><p>Guess that everything burned: 81</p><div class="track guess" role="img" aria-label="The everything-burned guess scored 81 out of 100"><i style="width:81%"></i></div></div>
+<div class="scale" aria-hidden="true"><span>0</span><span>100</span></div>
+</div>
+<p>We tested it on the eastern half. This is a score out of 100 (an F1 score times 100), not a percentage match.</p>
+<details><summary>What does this mean?</summary>
+<p>An F1 score checks two things at once. How much of the burnt ground did we find? And how little did we mark by mistake? A perfect score is 100.</p>
+</details>
+<p>We also tested six smaller squares. Our method did a little better than the guess on four of them, but not by enough to count.</p>
+</section>
 
-  <section id="sources">
-    <div class="panel">
-      <h2>Method and sources.</h2>
-      <p>Imagery: Sentinel-2 L2A via Element 84 Earth Search, tile 54LXL. Labels: Queensland Sentinel-2 Fire Scars 2022. Elevation: Copernicus DEM GLO-30. Each source keeps its licence.</p>
-      <ul>
-        <li>Sentinel-2: Copernicus Sentinel Data Legal Notice. Contains modified Copernicus Sentinel data 2022.</li>
-        <li>Queensland fire scars: CC BY 4.0. State of Queensland (Department of Environment and Science) 2022.</li>
-        <li>Copernicus DEM GLO-30: &copy; DLR e.V. 2010-2014 and &copy; Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved.</li>
-      </ul>
-      <p class="muted">Code and data: to be published with the repository.</p>
-    </div>
-  </section>
+<section>
+<h2>5 Why it failed here</h2>
+<ul>
+<li>Most of the land burned. A guess of &ldquo;all burned&rdquo; is right most of the time.</li>
+<li>The photos are about three and a half months apart. Normal dry-season browning can look like fire.</li>
+<li>The official map came from the same satellite. So it is not an independent check.</li>
+<li>The test squares touch each other. So they are not fully separate tests.</li>
+</ul>
+</section>
+
+<section>
+<h2>6 What it means for you</h2>
+<p>Before you trust a burn map&rsquo;s score, check it against the &lsquo;everything burned&rsquo; guess.</p>
+<p>If a map cannot beat that guess, its score tells you little.</p>
+</section>
+
+<section id="sources">
+<h2>Sources and licences</h2>
+<ul>
+<li>Satellite photos: Copernicus Sentinel-2. Contains modified Copernicus Sentinel data 2022.</li>
+<li>Fire outlines: Queensland fire scars, CC BY 4.0. State of Queensland, Department of Environment and Science, 2022.</li>
+</ul>
+<p>Want the maps, tables and methods? See the <a href="specialists.html">specialists page</a>. The code is on <a href="https://github.com/justinthe/scarline">GitHub</a>.</p>
+<p class="close">One area, one fire season, one pair of photos.</p>
+</section>
+</div>
 </main>
-
-<aside class="card3d" id="card3d" hidden aria-live="polite"><button type="button" id="card3dX" aria-label="Close">&times;</button><div id="card3dBody"></div><div class="muted" style="margin-top:.4rem">per pixel; the 3D surface is an approximation (8-bit colouring)</div></aside>
-
-<footer>
-  <p>Scarline is a portfolio analysis. It is not an operational burn product and is not validated against field data.</p>
-</footer>
-
-<script type="module">
-import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-
-const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const $ = (id) => document.getElementById(id);
-const fmt = (v, d = 2) => (v === null || v === undefined ? "n/a" : Number(v).toFixed(d));
-const pct = (v) => (v === null || v === undefined ? "n/a" : (100 * v).toFixed(0) + "%");
-const count = (v) => (v === null || v === undefined ? "n/a" : Number(v).toLocaleString("en-AU"));
-
-async function getJSON(p) { const r = await fetch(p); if (!r.ok) throw new Error(p); return r.json(); }
-
-function webglOK() {
-  try { const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch { return false; }
-}
-
-// ---------- metrics, readout and threshold: run with or without WebGL ----------
-let metrics = null, raw = null, W = 0, H = 0;
-let applyThreshold = () => {};     // set by the WebGL scene when it loads
-
-function updateReadout() {
-  const t = Number(thr.value);
-  $("thrVal").textContent = t.toFixed(2);
-  applyThreshold(t);
-  // exact sweep value from baseline_metrics.json: (tp+fp) / scored east pixels; the sweep stops at 0.84, so 0.85 falls back to the texture count
-  const sw = metrics && metrics.sweep.find((r) => Math.abs(r.threshold - t) < 1e-9);
-  if (sw) { $("rBurnt").textContent = pct((sw.test.tp + sw.test.fp) / metrics.scored_pixels.test_east); }
-  if (!raw) return;
-  let burnt = 0, n = 0;
-  for (let i = 0; i < raw.length; i += 4) {
-    const x = (i / 4) % W;
-    if (x < W / 2 || raw[i + 1] < 128) continue;
-    n++;
-    if (raw[i] / 255 * 1.5 - 0.5 > t) burnt++;
-  }
-  if (!sw) $("rBurnt").textContent = n ? pct(burnt / n) : "n/a";
-  if (metrics) {
-    $("rScar").textContent = pct(metrics.scar_fraction.test_east);
-    const atPublished = Math.abs(t - metrics.threshold) < 0.006;
-    $("rIoU").textContent = atPublished ? fmt(metrics.test_east.iou) : "n/a";
-    $("rF1").textContent = atPublished ? fmt(metrics.test_east.f1) : "n/a";
-  }
-}
-const thr = $("thr");
-thr.addEventListener("input", updateReadout);
-
-(async () => {
-  try {
-    const [m, cv] = await Promise.all([getJSON("data/baseline_metrics.json"), getJSON("data/block_cv.json")]);
-    metrics = m;
-    const te = m.test_east, ab = m.baseline_all_burnt_test_east, s27 = m["baseline_threshold_0.27_test_east"];
-    const rows = [
-      ["Model, threshold " + m.threshold.toFixed(2), te],
-      ["Everything burnt", ab],
-      ["Fixed threshold 0.27", s27],
-    ];
-    $("resTable").innerHTML = rows.map(([name, r], i) => `
-      <tr>
-        <td>${name}</td>
-        <td>${fmt(r.f1, 3)}</td><td>${fmt(r.iou, 3)}</td>
-        <td>${count(r.tp)}</td><td>${count(r.fp)}</td><td>${count(r.fn)}</td></tr>`).join("");
-    $("pooledM").textContent = fmt(cv.pooled_f1.model, 3);
-    $("pooledA").textContent = fmt(cv.pooled_f1.allburnt, 3);
-    $("pooled27").textContent = fmt(cv.pooled_f1.s27, 3);
-    $("blocks").innerHTML = Object.values(cv.blocks).map((b, i) => {
-      const a = b.allburnt_f1, mo = b.model_f1;
-      const bar = (a === null || mo === null) ? `<span class="muted">n/a</span>` : `
-        <div class="bar" role="img" aria-label="Block ${i + 1}: all-burnt F1 ${fmt(a, 3)}, model F1 ${fmt(mo, 3)}">
-          <i style="width:${(a * 100).toFixed(1)}%"></i><b style="left:${(mo * 100).toFixed(1)}%"></b></div>`;
-      return `<div class="blockrow"><span>Block ${i + 1} (${pct(b.prevalence)} scar)</span>${bar}<span>${fmt(mo, 2)}</span></div>`;
-    }).join("");
-    updateReadout();
-  } catch (e) {
-    $("resTable").innerHTML = `<tr><td colspan="6">Metrics could not be loaded. Serve this page over http.</td></tr>`;
-  }
+<footer><p class="small">Scarline is a study, not a fire warning service. Do not use it to make safety decisions.</p></footer>
+<script>
+(function () {
+  var d = document.documentElement, b = document.getElementById("flip"), p = document.getElementById("plates");
+  d.className += " js";
+  b.addEventListener("click", function () {
+    var on = b.getAttribute("data-show") !== "october";
+    b.setAttribute("data-show", on ? "october" : "july");
+    p.setAttribute("data-show", on ? "post" : "pre");
+    b.textContent = on ? "Showing October (after). Show July (before)" : "Showing July (before). Show October (after)";
+  });
 })();
-
-// dNBR raw texture, decoded for the readout (R = dNBR over [-0.5, 1.0], G = valid)
-const dnbrImg = new Image();
-dnbrImg.onload = () => {
-  const c = document.createElement("canvas"); W = c.width = dnbrImg.width; H = c.height = dnbrImg.height;
-  const g = c.getContext("2d"); g.drawImage(dnbrImg, 0, 0); raw = g.getImageData(0, 0, W, H).data;
-  updateReadout();
-};
-dnbrImg.src = "data/dnbr_raw.png";
-
-// ---------- 3D scene ----------
-async function initScene() {
-  const canvas = $("scene");
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.setClearColor(0x070b14, 1);
-  const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x070b14, 90, 170);
-  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 500);
-  camera.position.set(0, 70, 92);
-  const controls = new OrbitControls(camera, canvas);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.06;
-  controls.minDistance = 40;
-  controls.maxDistance = 160;
-  controls.maxPolarAngle = Math.PI * 0.49;
-  controls.target.set(0, 0, 0);
-  controls.autoRotate = !reduce;
-  controls.autoRotateSpeed = 0.35;
-
-  const loader = new THREE.TextureLoader();
-  const tex = (url) => new Promise((res, rej) => loader.load(url, (t) => {
-    t.colorSpace = THREE.NoColorSpace;
-    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    res(t);
-  }, undefined, () => rej(new Error(url))));
-
-  const uniforms = {
-    uPre: { value: null }, uPost: { value: null }, uDnbr: { value: null },
-    uDevelop: { value: 0 }, uThreshold: { value: 0.21 },
-    uSun: { value: new THREE.Vector3(-0.55, 0.62, 0.35).normalize() },
-    uEmber: { value: new THREE.Color("#ff7a1a") }, uAmber: { value: new THREE.Color("#ffb547") },
-  };
-
-  const vert = `
-    varying vec2 vUv; varying vec3 vN;
-    void main() {
-      vUv = uv;
-      vN = normalize(mat3(modelMatrix) * normal);
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }`;
-  const frag = `
-    precision highp float;
-    varying vec2 vUv; varying vec3 vN;
-    uniform sampler2D uPre; uniform sampler2D uPost; uniform sampler2D uDnbr;
-    uniform float uDevelop; uniform float uThreshold;
-    uniform vec3 uSun; uniform vec3 uEmber; uniform vec3 uAmber;
-    void main() {
-      vec3 pre = texture2D(uPre, vUv).rgb;
-      vec3 post = texture2D(uPost, vUv).rgb;
-      // darkroom bath: the post scene emerges from the pre scene as develop moves 0 to 1
-      float e = smoothstep(0.0, 1.0, uDevelop);
-      vec3 base = mix(pre, post, e);
-      vec4 raw = texture2D(uDnbr, vUv);
-      float d = raw.r * 1.5 - 0.5;
-      float valid = step(0.5, raw.g);
-      float burnt = valid * step(uThreshold, d);
-      vec3 heat = mix(uEmber, uAmber, clamp((d - uThreshold) * 2.0, 0.0, 1.0));
-      vec3 col = mix(base, heat, burnt * 0.78);
-      float lam = max(dot(normalize(vN), normalize(uSun)), 0.0);
-      col *= 0.35 + 0.85 * lam;
-      gl_FragColor = vec4(col, 1.0);
-    }`;
-
-  const dem = await getJSON("data/dem.json");
-  const N = dem.width;
-  const geo = new THREE.PlaneGeometry(50, 56, N - 1, N - 1);
-  geo.rotateX(-Math.PI / 2);                 // row 0 (north) lands at the far edge, matching the north-up rasters
-  const span = dem.max - dem.min || 1;
-  const RELIEF = 7;                          // scene units of relief across the 50 km width
-  const pos = geo.attributes.position;
-  for (let i = 0; i < N * N; i++) pos.setY(i, ((dem.heights[i] - dem.min) / span) * RELIEF);
-  pos.needsUpdate = true;
-  geo.computeVertexNormals();
-
-  const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: vert, fragmentShader: frag });
-  const terrain = new THREE.Mesh(geo, mat);
-  scene.add(terrain);
-  const grid = new THREE.GridHelper(70, 14, 0x223049, 0x16203a);
-  grid.position.y = -0.2;
-  scene.add(grid);
-
-  const [pre, post, dnbr] = await Promise.all([tex("data/pre.jpg"), tex("data/post.jpg"), tex("data/dnbr_raw.png")]);
-  uniforms.uPre.value = pre; uniforms.uPost.value = post; uniforms.uDnbr.value = dnbr;
-  applyThreshold = (t) => { uniforms.uThreshold.value = t; };
-  applyThreshold(Number(thr.value));
-
-  // ---------- develop: buttons set the target; scroll sets it only while the user scrolls ----------
-  let developTarget = 0, develop = 0;
-  const sceneBtns = document.querySelectorAll("[data-scene]");
-  const setScene = (name) => {
-    developTarget = name === "post" ? 1 : 0;
-    sceneBtns.forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.scene === name)));
-  };
-  sceneBtns.forEach((b) => b.addEventListener("click", () => setScene(b.dataset.scene)));
-
-  const developSec = $("develop");
-  const onScroll = () => {
-    const r = developSec.getBoundingClientRect();
-    const p = 1 - r.bottom / (r.height + innerHeight);
-    const target = Math.min(1, Math.max(0, p * 1.4));
-    developTarget = target;
-    const named = target > 0.5 ? "post" : "pre";
-    sceneBtns.forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.scene === named)));
-    if (!reduce) controls.autoRotate = window.scrollY < 40;
-  };
-  addEventListener("scroll", onScroll, { passive: true });
-
-  // ---------- click-to-inspect on the terrain (a click is < 5 px and < 400 ms; anything else is an orbit drag) ----------
-  const card = $("card3d"), cardBody = $("card3dBody");
-  $("card3dX").addEventListener("click", () => { card.hidden = true; });
-  let quad = null, down = null;
-  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
-  canvas.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
-  canvas.addEventListener("pointerup", async (e) => {
-    const d = down; down = null;
-    if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 5 || performance.now() - d.t >= 400) return;
-    ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
-    ray.setFromCamera(ndc, camera);
-    const hit = ray.intersectObject(terrain)[0];
-    if (!hit || !hit.uv || typeof window.scarlineInspect !== "function") return;
-    try {
-      quad ??= (await getJSON("data/map_meta.json")).quad_fit;
-      const s = hit.uv.x, t = 1 - hit.uv.y;                      // srcCol = floor(u*5006), srcRow = floor((1-v)*5608)
-      const basis = [1, s, t, s * s, s * t, t * t];
-      const x = basis.reduce((a, b, i) => a + b * quad.x[i], 0), y = basis.reduce((a, b, i) => a + b * quad.y[i], 0);
-      const R = 6378137;
-      const o = await window.scarlineInspect((2 * Math.atan(Math.exp(y / R)) - Math.PI / 2) * 180 / Math.PI, x / R * 180 / Math.PI, { silent: true });
-      if (!o) return;
-      const lines = o.inside ? [
-        `<b>${o.lat.toFixed(5)}, ${o.lon.toFixed(5)}</b> (about 49 m cell)`,
-        `Source pixel row ${o.srcRow}, col ${o.srcCol} (${o.half})`,
-        `dNBR ${o.scored ? o.dnbr.toFixed(3) : "n/a"}; QLD scar: ${o.scar}`,
-        o.scored ? `At ${o.threshold.toFixed(2)}: ${o.agreement}` : `Not scored: ${o.reason}`,
-      ] : ["Outside scene"];
-      cardBody.innerHTML = lines.join("<br>");
-      card.hidden = false;
-    } catch { /* inspect data unavailable: no card */ }
-  });
-
-  // ---------- size + loop ----------
-  const resize = () => {
-    renderer.setSize(innerWidth, innerHeight, false);
-    camera.aspect = innerWidth / innerHeight;
-    camera.updateProjectionMatrix();
-  };
-  addEventListener("resize", resize);
-  resize();
-  const clock = new THREE.Clock();
-  function tick() {
-    const dt = Math.min(clock.getDelta(), 0.05);
-    develop += (developTarget - develop) * Math.min(1, dt * 3.2);
-    uniforms.uDevelop.value = develop;
-    controls.update();
-    renderer.render(scene, camera);
-    requestAnimationFrame(tick);
-  }
-  tick();
-}
-
-if (!webglOK()) {
-  document.documentElement.classList.add("no-webgl");
-} else {
-  initScene().catch(() => document.documentElement.classList.add("no-webgl"));
-}
-</script>
-<script type="module">
-// 2D map and cell inspector. Independent of the three.js module: a CDN failure in either leaves the other working.
-const $ = (id) => document.getElementById(id);
-const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const D = "data/";
-const REC = 18, T0 = 0.05, TSTEP = 0.01;
-const R = 6378137;
-const merc = (lat, lon) => ({ x: R * lon * Math.PI / 180, y: R * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) }); // same as L.CRS.EPSG3857.project
-const unmerc = (x, y) => ({ lat: (2 * Math.atan(Math.exp(y / R)) - Math.PI / 2) * 180 / Math.PI, lon: x / R * 180 / Math.PI });
-
-// ---------- data ----------
-let metaP = null, kP = null, whole = null;
-const getMeta = () => (metaP ??= fetch(D + "map_meta.json").then((r) => { if (!r.ok) throw new Error("meta"); return r.json(); }));
-const getK = () => (kP ??= (async () => {  // map_k.png: R = k, G = flags low byte, decoded without colour conversion
-  const blob = await (await fetch(D + "map_k.png")).blob();
-  const bmp = await createImageBitmap(blob, { colorSpaceConversion: "none", premultiplyAlpha: "none" });
-  const c = document.createElement("canvas"); c.width = bmp.width; c.height = bmp.height;
-  const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(bmp, 0, 0);
-  return g.getImageData(0, 0, c.width, c.height).data;
-})());
-async function record(o) {
-  if (whole) return new DataView(await whole, o, REC);
-  const r = await fetch(D + "inspect.bin", { headers: { Range: `bytes=${o}-${o + REC - 1}` } });
-  if (!r.ok) throw new Error("inspect.bin HTTP " + r.status);
-  if (r.status === 206) {
-    const b = await r.arrayBuffer();
-    if (b.byteLength !== REC) throw new Error("inspect.bin range length");
-    return new DataView(b);
-  }
-  whole = r.arrayBuffer().catch((e) => { whole = null; throw e; });  // server ignored Range: cache the Promise so later clicks share it and a failure can retry; concurrent clicks before this first response each start their own download
-  return new DataView(await whole, o, REC);
-}
-
-const thrNow = () => Number($("thr").value);
-const kIndex = (t) => Math.round((t - T0) / TSTEP);
-
-// ---------- inspect ----------
-const f = (v, d) => v.toFixed(d);
-function view(b, t) {
-  // everything below follows baseline.py: rho = DN*0.0001; NBR = (nir-swir2)/(nir+swir2); dNBR = NBR_pre - NBR_post
-  const o = { inside: true, lat: b.lat, lon: b.lon, col: b.col, row: b.row, srcRow: b.v[0], srcCol: b.v[1], threshold: t };
-  const fl = b.v[8] & 255, sc = b.scale;  // flags low byte; high byte is k
-  o.zero = b.v.slice(2, 8).some((x) => !x);  // DN 0 = no data: reflectance and NBR not meaningful
-  o.half = o.srcCol < b.splitCol ? "west" : "east";
-  o.reflectance = {
-    pre: { red: b.v[2] * sc, nir: b.v[3] * sc, swir22: b.v[4] * sc },
-    post: { red: b.v[5] * sc, nir: b.v[6] * sc, swir22: b.v[7] * sc },
-  };
-  o.scored = !!(fl & 1);
-  const truth = !!(fl & 2), amb = !!(fl & 4);
-  o.scar = truth && amb ? "yes (Aug–Oct), also in a Jul/Nov scar: excluded" : truth ? "yes (Aug–Oct)" : amb ? "excluded (Jul or Nov)" : "no";
-  const why = [];
-  if (!(fl & 8)) why.push("cloud, shadow or other SCL class on 13 Jul");
-  if (!(fl & 16)) why.push("cloud, shadow or other SCL class on 26 Oct");
-  if ((fl & 24) === 24 && (!b.v[3] || !b.v[4] || !b.v[6] || !b.v[7])) why.push("zero NIR or SWIR2 value");
-  if (amb) why.push("QLD scar in Jul or Nov (ambiguous dates)");
-  o.reason = o.scored ? null : (why.join("; ") || "dNBR undefined");
-  if (o.scored) {
-    o.nbrPre = (b.v[3] - b.v[4]) / (b.v[3] + b.v[4]);
-    o.nbrPost = (b.v[6] - b.v[7]) / (b.v[6] + b.v[7]);
-    o.dnbr = o.nbrPre - o.nbrPost;
-    o.burnt = b.k > kIndex(t);  // k = number of slider thresholds that dNBR exceeds
-    o.agreement = o.burnt ? (truth ? "hit" : "false alarm") : (truth ? "miss" : "correct reject");
-    if (o.half === "west") o.agreement += " (training half)";
-    o.status = o.burnt ? `burnt: dNBR above ${f(t, 2)}` : `not burnt: dNBR not above ${f(t, 2)}`;
-  } else {
-    o.nbrPre = o.nbrPost = o.dnbr = null; o.burnt = null; o.agreement = null; o.status = null;
-  }
-  return o;
-}
-
-const NA = "n/a";
-let announceT = 0;
-function renderPanel(o) {
-  const dl = $("inspectDl");
-  let rows;
-  if (!o.inside) rows = [["Status", "outside scene"]];
-  else {
-    const rf = (r) => o.zero ? NA : `red ${f(r.red, 4)}, NIR ${f(r.nir, 4)}, SWIR2 ${f(r.swir22, 4)}` + (o.scored ? "" : " (masked)");
-    const half = o.half + (o.half === "west" ? " (training half)" : " (scored half)");
-    rows = [
-      ["Centre", `${f(o.lat, 5)}, ${f(o.lon, 5)}`],
-      ["Display cell", `col ${o.col}, row ${o.row} (~49 m)`],
-      ["Source pixel", `row ${o.srcRow}, col ${o.srcCol} (10 m, UTM 54S); ${half}`],
-      ["Pre, 13 Jul", rf(o.reflectance.pre)],
-      ["Post, 26 Oct", rf(o.reflectance.post)],
-      ["Reflectance", "BOA, DN × 0.0001"],
-      ["NBR pre", o.scored && !o.zero ? f(o.nbrPre, 3) : NA],
-      ["NBR post", o.scored && !o.zero ? f(o.nbrPost, 3) : NA],
-      ["dNBR", o.scored ? f(o.dnbr, 3) : NA],
-      [`Threshold ${f(o.threshold, 2)}`, o.scored ? o.status : NA],
-      ["QLD scar", o.scar],
-      ["Scored", o.scored ? "yes" : "no: " + o.reason],
-      ["Agreement", o.scored ? o.agreement : NA],
-    ];
-  }
-  const sum = !o.inside ? "Outside scene" : o.scored ? [o.agreement, o.burnt ? "burnt" : "not burnt"].join(", ") : "Not scored: " + o.reason;
-  clearTimeout(announceT); announceT = setTimeout(() => { $("inspectStatus").textContent = sum; }, 500);  // debounced for screen readers
-  dl.replaceChildren(...rows.flatMap(([k, v]) => {
-    const dt = document.createElement("dt"), dd = document.createElement("dd");
-    dt.textContent = k; dd.textContent = v; return [dt, dd];
-  }));
-}
-
-let last = null, rect = null, mapRef = null, vecRenderer = null;
-async function inspect(lat, lon, opts = {}) {
-  const m = await getMeta(), g = m.grid;
-  const p = merc(lat, lon);
-  const col = Math.floor((p.x - g.x0) / g.cell), row = Math.floor((g.y0 - p.y) / g.cell);
-  let o;
-  if (col < 0 || col >= g.W || row < 0 || row >= g.H) {
-    o = { inside: false };
-  } else {
-    const dv = await record((row * g.W + col) * REC);
-    const v = Array.from({ length: 9 }, (_, i) => dv.getUint16(i * 2, true));
-    if (v[8] & 32) o = { inside: false };
-    else {
-      const c = unmerc(g.x0 + (col + 0.5) * g.cell, g.y0 - (row + 0.5) * g.cell);
-      const b = { lat: c.lat, lon: c.lon, col, row, v, k: v[8] >> 8, scale: m.scale, splitCol: m.split.col,
-        corners: [unmerc(g.x0 + col * g.cell, g.y0 - (row + 1) * g.cell), unmerc(g.x0 + (col + 1) * g.cell, g.y0 - row * g.cell)] };
-      o = view(b, thrNow());
-      if (!opts.silent) last = b;
-    }
-  }
-  if (!opts.silent) {
-    renderPanel(o);
-    if (mapRef) {
-      if (rect) { rect.remove(); rect = null; }
-      if (last && o.inside) {
-        const [a, c] = last.corners;
-        rect = L.rectangle([[a.lat, a.lon], [c.lat, c.lon]], { color: "#e8edf5", weight: 2, fill: false, interactive: false, renderer: vecRenderer }).addTo(mapRef);
-      }
-    }
-    if (!o.inside) last = null;
-  }
-  return o;
-}
-window.scarlineInspect = (lat, lon, opts) => inspect(lat, lon, opts).catch((e) => {
-  if (!opts || !opts.silent) { const m = `Inspection data could not be loaded (${e.message}). Serve this page over http.`; $("inspectDl").replaceChildren(Object.assign(document.createElement("dd"), { textContent: m })); $("inspectStatus").textContent = m; }
-  return null;
-});
-$("thr").addEventListener("input", () => { if (last) renderPanel(view(last, thrNow())); });  // threshold changes re-judge the inspected cell
-
-// ---------- map ----------
-async function initMap() {
-  const L = window.L;
-  const msg = $("mapmsg");
-  if (!L) { msg.textContent = "The map library could not be loaded from cdn.jsdelivr.net. The 3D view and the scores above do not depend on it."; return; }
-  let m;
-  try { m = await getMeta(); } catch { msg.textContent = "Map data could not be loaded. Serve this page over http."; return; }
-  msg.remove();
-  const g = m.grid;
-  const sw = unmerc(g.x0, g.y0 - g.H * g.cell), ne = unmerc(g.x0 + g.W * g.cell, g.y0);
-  const gb = L.latLngBounds([sw.lat, sw.lon], [ne.lat, ne.lon]);  // exact extent of the 3857 display grid
-  const map = L.map("lmap", {
-    maxZoom: 15, preferCanvas: true, keyboard: true, maxBoundsViscosity: 1, scrollWheelZoom: false,
-    zoomAnimation: !reduce, fadeAnimation: !reduce, markerZoomAnimation: !reduce,
-  });
-  mapRef = map;
-  // wheel zoom only after a click/tap on the map; off again on blur or page scroll
-  const mapEl = map.getContainer(), wheelOff = () => map.scrollWheelZoom.disable();
-  map.on("click", () => map.scrollWheelZoom.enable());
-  mapEl.addEventListener("focusout", wheelOff);
-  window.addEventListener("scroll", wheelOff, { passive: true });
-  map.fitBounds(gb);
-  map.setMinZoom(map.getZoom() - 1);
-  map.setMaxBounds(gb.pad(0.08));
-  map.attributionControl.addAttribution("Contains modified Copernicus Sentinel data 2022 | Fire scars © State of Queensland (DES) 2022, CC BY 4.0");
-  const base = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 15, maxNativeZoom: 13, attribution: "© OpenStreetMap contributors" }).addTo(map);  // tilePane (z 200) sits under the overlays
-  $("mBase").addEventListener("click", (e) => { const on = !map.hasLayer(base); if (on) base.addTo(map); else base.remove(); e.currentTarget.setAttribute("aria-pressed", String(on)); });
-  L.control.scale({ imperial: false }).addTo(map);
-  map.createPane("vec").style.zIndex = 450;  // vectors above the image overlays
-  vecRenderer = L.canvas({ pane: "vec" });
-  const ct = map.getContainer();
-  const wrap = ct.parentElement;
-  ct.addEventListener("focus", () => wrap.classList.add("kbd"));
-  ct.addEventListener("blur", () => wrap.classList.remove("kbd"));
-  ct.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === ct) { const c = map.getCenter(); window.scarlineInspect(c.lat, c.lng); } });
-  map.on("click", (e) => window.scarlineInspect(e.latlng.lat, e.latlng.lng));
-
-  // scenes
-  const scenes = {};
-  let sceneNow = "post";
-  const setScene = (name) => {
-    sceneNow = name;
-    for (const [k, l] of Object.entries(scenes)) if (k !== name) l.remove();
-    if (name !== "none") {
-      scenes[name] ??= L.imageOverlay(D + `map_${name}.jpg`, gb, { zIndex: 1, interactive: false, alt: "" });
-      scenes[name].addTo(map);
-    }
-    document.querySelectorAll("[data-mscene]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mscene === name)));
-  };
-  document.querySelectorAll("[data-mscene]").forEach((b) => b.addEventListener("click", () => setScene(b.dataset.mscene)));
-
-  // scar outlines and split line
-  const show = { dnbr: true, truth: true, amb: false, split: true };
-  const layers = {};
-  fetch(D + "scars.json").then((r) => r.json()).then((gj) => {
-    const mk = (cls, style) => L.geoJSON(gj, { filter: (x) => x.properties.cls === cls, interactive: false, renderer: vecRenderer, style: () => ({ ...style, fill: false, interactive: false }) });
-    layers.truth = mk("truth", { color: "#e8edf5", weight: 1.5 });
-    layers.amb = mk("ambiguous", { color: "#e8edf5", weight: 1.5, dashArray: "5 5" });
-    sync("truth"); sync("amb");
-  }).catch(() => {});
-  const ll = m.split.line_latlon;
-  const mid = [ll[0][0] + (ll[1][0] - ll[0][0]) * 0.1, ll[0][1] + (ll[1][1] - ll[0][1]) * 0.1];
-  layers.split = L.layerGroup([
-    L.polyline(ll, { color: "#e8edf5", weight: 2.5, dashArray: "1 7", lineCap: "round", interactive: false, renderer: vecRenderer }),
-    L.tooltip({ permanent: true, direction: "center", className: "splitlabel", interactive: false }).setLatLng(mid).setContent("threshold chosen west | scored east"),
-  ]);
-
-  // dNBR layer: repainted from map_k.png (R = k, G = flags) so one file serves every threshold
-  const eff = () => Math.min(Number($("mOp").value), map.getZoom() >= 14 ? 0.45 : 1);  // slider value, capped at high zoom
-  let dLayer = null, dUrl = null, painting = false, dirty = false, cv = null, img = null;
-  const ASH = [42, 47, 58], ASH2 = [120, 132, 156], EMBER = [255, 122, 26], AMBER = [255, 181, 71], HATCH = [[150, 160, 180], [60, 66, 84]];  // HATCH matches .sw.box
-  async function paintOnce() {
-    const kd = await getK();
-    const t = thrNow(), idx = kIndex(t);
-    if (!cv) { cv = document.createElement("canvas"); cv.width = g.W; cv.height = g.H; img = cv.getContext("2d").createImageData(g.W, g.H); }
-    const out = img.data, up = 81 - idx;
-    for (let i = 0; i < kd.length; i += 4) {
-      const px = i >> 2, k = kd[i], fl = kd[i + 1];
-      let c, a;
-      if (fl & 32) { out[i + 3] = 0; continue; }                 // outside the scene
-      else if (!(fl & 1)) { c = HATCH[((((px % g.W) - ((px / g.W) | 0)) % 6 + 6) % 6) < 3 ? 0 : 1]; a = 255; }  // not scored: diagonal hatch
-      else if (k > idx) { const u = (k - idx) / up; c = [0, 1, 2].map((j) => EMBER[j] + (AMBER[j] - EMBER[j]) * u); a = 255; }  // above threshold, solid
-      else { const u = idx ? k / idx : 0; c = [0, 1, 2].map((j) => ASH[j] + (ASH2[j] - ASH[j]) * u); a = 110 + 50 * u; }          // below, faint ash
-      out[i] = c[0]; out[i + 1] = c[1]; out[i + 2] = c[2]; out[i + 3] = a;
-    }
-    cv.getContext("2d").putImageData(img, 0, 0);
-    const blob = await new Promise((res) => cv.toBlob(res, "image/png"));
-    const url = URL.createObjectURL(blob), old = dUrl;
-    dUrl = url;
-    if (!dLayer) {
-      dLayer = L.imageOverlay(url, gb, { zIndex: 3, interactive: false, opacity: eff(), alt: "" });
-      if (show.dnbr) dLayer.addTo(map);
-    } else {
-      const el = dLayer.getElement();
-      if (el && old) el.addEventListener("load", () => URL.revokeObjectURL(old), { once: true });
-      else if (old) URL.revokeObjectURL(old);
-      dLayer.setUrl(url);
-    }
-  }
-  async function paint() {  // one repaint in flight; later requests collapse into one follow-up
-    dirty = true;
-    if (painting) return;
-    painting = true;
-    try { while (dirty) { dirty = false; await paintOnce(); } } catch { /* leave the previous paint */ } finally { painting = false; }
-  }
-  function sync(key) {
-    const on = show[key];
-    if (key === "dnbr") { if (on) { if (dLayer) dLayer.addTo(map); paint(); } else if (dLayer) dLayer.remove(); }
-    else if (layers[key]) { if (on) layers[key].addTo(map); else layers[key].remove(); }
-    const b = document.querySelector(`[data-mlayer="${key}"]`);
-    if (b) b.setAttribute("aria-pressed", String(on));
-  }
-  document.querySelectorAll("[data-mlayer]").forEach((b) => b.addEventListener("click", () => { show[b.dataset.mlayer] = !show[b.dataset.mlayer]; sync(b.dataset.mlayer); }));
-
-  // threshold mirror and legend tick
-  const thr = $("thr"), mThr = $("mThr");
-  const legend = () => {
-    const t = thrNow(), p = ((t - T0) / 0.8) * 100;
-    $("mThrVal").textContent = t.toFixed(2);
-    mThr.value = t;
-    $("mRamp").style.background = `linear-gradient(90deg, rgb(${ASH}) 0%, rgb(${ASH2}) ${p}%, rgb(${EMBER}) ${p}%, rgb(${AMBER}) 100%)`;
-    $("mTick").style.left = p + "%";
-    const lab = $("mTickLab"); lab.textContent = "threshold " + t.toFixed(2); lab.style.left = Math.min(88, Math.max(12, p)) + "%";
-  };
-  mThr.addEventListener("input", () => { thr.value = mThr.value; thr.dispatchEvent(new Event("input")); });
-  thr.addEventListener("input", () => { legend(); if (show.dnbr) paint(); });
-  $("mOp").addEventListener("input", (e) => { const v = Number(e.target.value); $("mOpVal").textContent = Math.round(v * 100) + "%"; if (dLayer) dLayer.setOpacity(eff()); });
-  map.on("zoomend", () => { if (dLayer) dLayer.setOpacity(eff()); });
-  legend();
-  setScene("post");
-  sync("split");
-  paint();
-}
-
-const sec = $("map");
-if ("IntersectionObserver" in window) {
-  const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); initMap(); } }, { rootMargin: "300px" });
-  io.observe(sec);
-} else initMap();
 </script>
 </body>
 </html>

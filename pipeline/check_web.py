@@ -34,6 +34,7 @@ assert mk.shape == (H, W, 3), mk.shape
 assert (mk[..., 2] == 0).all()
 assert (OUT / "scars.json").stat().st_size < 600_000
 assert meta["quad_fit"]["max_residual_m"] < 1.0
+assert Image.open(OUT / "home_change.png").size == Image.open(OUT / "map_post.jpg").size == (W, H)
 
 dnbr = np.load(PROC / "dnbr.npy")
 valid, truth = np.load(PROC / "valid.npy"), np.load(PROC / "truth.npy")
