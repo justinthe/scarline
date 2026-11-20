@@ -1,0 +1,9 @@
+# Raw downloads and intermediate rasters (large; rebuild with pipeline/)
+data/*/raw/
+data/*/processed/
+# Local session logs and per-machine settings
+.recall/
+.impeccable/config.local.json
+# Python caches
+__pycache__/
+*.pyc

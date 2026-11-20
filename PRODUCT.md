@@ -1,0 +1,62 @@
+# Product
+
+## Platform
+
+web
+
+## Stack
+
+Static site in `docs/`, GitHub Pages. Three.js for the 3D terrain; Leaflet 1.9.4 (jsDelivr, SRI) for the 2D map with click-to-inspect, OpenStreetMap basemap (tile.openstreetmap.org, attribution shown, toggle). The 2D map is also the fallback when WebGL is unavailable. Plain HTML, CSS and ES modules. No backend, no build step required for viewing. Data as pre-built JSON and PNG/GeoJSON files.
+
+## Users
+
+Hiring managers, technical leads and remote-sensing peers reviewing a portfolio. Secondary: practitioners and journalists who want an honest look at what a simple burn-mapping method can and cannot do.
+
+## Product Purpose
+
+Scarline is a portfolio demo of burn-scar change detection over Cape York, Queensland, built from public Sentinel-2 imagery and the Queensland 2022 fire-scar product. It shows the full chain: pre-fire and post-fire scenes, the dNBR burn index, the labels, and the scores. The point is the candidate's judgement: the page states a negative result plainly and explains it.
+
+## Positioning
+
+A worked, honest example of remote-sensing analysis, presented as a piece that makes the candidate look like a careful analyst, not a hype-driven one. Not a product, not a national burn map.
+
+## Operating Context
+
+Visitors arrive from a link, usually on desktop, sometimes on a phone. Expect a 60–120 second visit. Many will look only at the first screen and the results, so the first viewport must carry the thesis.
+
+## Capabilities and Constraints
+
+- Static only: no server, no database, no API keys, no analytics in v1.
+- Raster data is pre-rendered PNG tiles or a single overlay; no in-browser GeoTIFF decoding.
+- Page loads in under 5 seconds on broadband; 3D must degrade to a flat image on devices without WebGL.
+- Works at 390 px wide and 1280–1600 px desktop.
+- Map overlays use square display cells of about 49 m (EPSG:3857, 1024 wide); each shows the single 10 m pixel at its centre.
+- Single area: Cape York, tile 54LXL. Single scene pair: pre 2022-07-13, post 2022-10-26.
+
+## Brand Commitments
+
+- The negative result is stated on the first screen, same visual weight as the title. Not a footnote.
+- Scores are labelled with their limits: labels are agency-derived from Sentinel-2, the same sensor as the input; scene pair five months apart; one area, one season.
+- Gulf is not part of the result and is not shown as if it were.
+- Every dataset has its licence and attribution visible (Copernicus Legal Notice; CC BY 4.0 for the Queensland labels).
+
+## Evidence on Hand
+
+- `data/capeyork/processed/baseline_metrics.json`: full-scene east/west split. Model F1 0.75, IoU 0.60; all-burnt F1 0.815, IoU 0.69.
+- `data/capeyork/processed/block_cv.json`: six 10 km blocks, leave-one-block-out. Pooled model F1 0.563; all-burnt 0.539; fixed 0.27 threshold 0.563. Model beats all-burnt on 4 of 6 blocks, not significant.
+- Rasters: dNBR, valid mask and truth in `data/capeyork/processed/` (.npy); clipped bands in `data/capeyork/raw/`.
+- Full PRD at `PRD.md`; methods and limits in `README.md`.
+
+## Product Principles
+
+1. Honesty over impact: the result shown is the result measured.
+2. The data is the star: the terrain, the scars and the scene change carry the page, not decorative chrome.
+3. Show the mechanism, not a claim: each number can be traced to a layer on the page.
+4. Calm where it counts: tables and metrics read cleanly; the 3D moment is the one place the page spends drama.
+
+## Accessibility & Inclusion
+
+- WCAG AA contrast for all text; the colour ramp for dNBR is not red/green only (value and labels carry meaning).
+- Keyboard operable controls: slider, toggles, and scroll sections. Reduced-motion preference disables scroll-driven camera moves.
+- A 2D fallback image and text description of the terrain for visitors without WebGL or who prefer it.
+- Plain-language summary of method for non-specialists in the Method panel.

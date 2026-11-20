@@ -1,0 +1,34 @@
+{
+  "sources": [
+    {
+      "name": "Sentinel-2 L2A (Earth Search, COG)",
+      "items": [
+        "S2A_54LXL_20220713_0_L2A (pre)",
+        "S2B_54LXL_20221026_0_L2A (post)"
+      ],
+      "url": "https://earth-search.aws.element84.com/v1/",
+      "licence": "Copernicus Sentinel Data Legal Notice (free, full, open)",
+      "attribution": "Contains modified Copernicus Sentinel data 2022"
+    },
+    {
+      "name": "Copernicus DEM GLO-30",
+      "items": [
+        "Copernicus_DSM_COG_10_S14_00_E142_00_DEM"
+      ],
+      "url": "s3://copernicus-dem-30m",
+      "licence": "Copernicus DEM licence",
+      "attribution": "\u00a9 DLR e.V. 2010-2014 and \u00a9 Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved"
+    },
+    {
+      "name": "Queensland Sentinel-2 Fire Scars 2022 (ArcGIS layer 36)",
+      "url": "https://spatial-gis.information.qld.gov.au/arcgis/rest/services/Environment/FireScarMapping/MapServer/36",
+      "dataset_pages": [
+        "https://www.data.qld.gov.au/dataset/sentinel-2-queensland-fire-scars-series",
+        "https://geonetwork.tern.org.au/geonetwork/srv/api/records/7b6d2b84-cbf3-46e8-aa8c-c49352f9ffd5"
+      ],
+      "licence": "CC BY 4.0 (confirmed on data.qld.gov.au dataset page and TERN record)",
+      "attribution": "State of Queensland (Department of Environment and Science) 2022; produced by JRSRP using Sentinel-2 data"
+    }
+  ],
+  "downloaded": "2026-11-20"
+}
