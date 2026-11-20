@@ -1,11 +1,9 @@
 """Build web assets for the Scarline portfolio page from the Cape York outputs.
 
-Writes docs/data/: dem.json (heights on a 256x256 grid), pre.jpg and post.jpg (SWIR2-NIR-red
-false colour, stretched), dnbr_raw.png (3D shader input), copies of the baseline and block results,
-and the 2D map set from build_map(): map_pre.jpg, map_post.jpg, map_k.png, inspect.bin, scars.json,
-map_meta.json. Run from the project root:
+Writes docs/data/: copies of the baseline and block results, and the 2D map set from build_map():
+map_pre.jpg, map_post.jpg (SWIR2-NIR-red false colour, stretched), map_k.png, inspect.bin, scars.json,
+map_meta.json, plus home_change.png for the home page. Run from the project root:
     python3 pipeline/build_web.py
-Copernicus DEM GLO-30 is read anonymously from the public bucket copernicus-dem-30m.
 """
 import json
 import os
@@ -14,9 +12,9 @@ from pathlib import Path
 
 import numpy as np
 import rasterio
-from PIL import Image
+from PIL import Image, ImageDraw
 from rasterio.enums import Resampling
-from rasterio.warp import reproject, transform_bounds
+from rasterio.warp import transform_bounds
 import geopandas as gpd
 import pyproj
 import shapely
@@ -35,9 +33,6 @@ OUT = ROOT / "docs" / "data"
 OUT.mkdir(parents=True, exist_ok=True)
 PRE = "S2A_54LXL_20220713_0_L2A"
 POST = "S2B_54LXL_20221026_0_L2A"
-DEM_URL = "/vsis3/copernicus-dem-30m/Copernicus_DSM_COG_10_S14_00_E142_00_DEM/Copernicus_DSM_COG_10_S14_00_E142_00_DEM.tif"
-TEX = 1024
-GRID = 256
 
 manifest = json.loads((RAW / "manifest.json").read_text())
 
@@ -101,6 +96,30 @@ def build_scars(ref_crs, bounds):
         g = shapely.transform(g, lambda c: np.round(c, 4))
         feats.append({"type": "Feature", "properties": {"cls": cls}, "geometry": mapping(g)})
     (OUT / "scars.json").write_text(json.dumps({"type": "FeatureCollection", "features": feats}, separators=(",", ":")))
+
+
+def build_home_change(k, x0, y0, cell):
+    """home_change.png: map_post.jpg in grey + orange tint where dNBR > 0.21 + white Aug-Oct scar outlines. Same size as map_post.jpg."""
+    post = Image.open(OUT / "map_post.jpg").convert("RGB")
+    a = np.asarray(post).astype(np.float32)
+    assert a.shape[:2] == k.shape, (a.shape, k.shape)
+    burnt = k > int(np.flatnonzero(THRESH == 0.21)[0])  # k = number of THRESH values dNBR exceeds
+    a = np.repeat((a @ np.array([0.299, 0.587, 0.114], np.float32))[..., None], 3, axis=2) * 0.8  # grey base so the tint reads
+    a[burnt] = a[burnt] * 0.4 + np.array([224, 96, 28], np.float32) * 0.6
+    img = Image.fromarray(a.astype(np.uint8))
+    d = ImageDraw.Draw(img)
+    R = 6378137.0
+    def px(lon, lat):  # same formula as L.CRS.EPSG3857 / map_meta grid
+        x = R * np.radians(lon)
+        y = R * np.log(np.tan(np.pi / 4 + np.radians(lat) / 2))
+        return ((x - x0) / cell, (y0 - y) / cell)
+    truth = next(f for f in json.loads((OUT / "scars.json").read_text())["features"] if f["properties"]["cls"] == "truth")
+    g = shapely.geometry.shape(truth["geometry"])
+    for poly in getattr(g, "geoms", [g]):
+        for ring in [poly.exterior, *poly.interiors]:
+            d.line([px(*c) for c in ring.coords], fill=(255, 255, 255), width=2)
+    assert img.size == post.size, (img.size, post.size)
+    img.save(OUT / "home_change.png", optimize=True)
 
 
 def build_map(dnbr, scored):
@@ -173,6 +192,7 @@ def build_map(dnbr, scored):
         del comp
 
     build_scars(prof["crs"], bounds)
+    build_home_change(k, x0, y0, cell)
 
     # quadratic fit: source (col, row) pixel centre -> 3857 (x, y), in s = col/W0, t = row/H0 (s = u, t = 1 - v of the DEM texture)
     gs, gt = np.meshgrid(np.linspace(0, 1, 21), np.linspace(0, 1, 21))
@@ -211,34 +231,6 @@ def build_map(dnbr, scored):
 def main():
     dnbr = np.load(PROC / "dnbr.npy")
     valid = np.load(PROC / "valid.npy")
-    H, W = dnbr.shape
-    shape = (H, W)
-
-    # Terrain: Copernicus DEM reprojected onto the AOI grid
-    with rasterio.open(RAW / f"{PRE}_nir.tif") as ref:
-        dst_tr, dst_crs = ref.transform, ref.crs
-    dem = np.zeros(shape, dtype=np.float32)
-    with rasterio.open(DEM_URL) as src:
-        reproject(source=rasterio.band(src, 1), destination=dem, src_transform=src.transform,
-                  src_crs=src.crs, dst_transform=dst_tr, dst_crs=dst_crs, resampling=Resampling.bilinear)
-    dem_small = np.array(Image.fromarray(dem).resize((GRID, GRID), Image.BILINEAR), dtype=np.float32)
-    dem_out = {"width": GRID, "height": GRID, "min": float(dem_small.min()), "max": float(dem_small.max()),
-               "heights": [round(float(v), 1) for v in dem_small.ravel()],
-               "source": "Copernicus DEM GLO-30 (2021), Copernicus DEM licence, attribution required"}
-    (OUT / "dem.json").write_text(json.dumps(dem_out, separators=(",", ":")))
-
-    # Scene textures
-    sh_small = (min(TEX, H), min(TEX, W))
-    for name, sid in [("pre", PRE), ("post", POST)]:
-        comp = composite(sid, shape, valid)
-        Image.fromarray(comp).resize((TEX, TEX), Image.BILINEAR).save(OUT / f"{name}.jpg", quality=86)
-
-    # Raw dNBR for the threshold slider: R = dNBR encoded over [-0.5, 1.0], G = valid mask
-    enc = np.clip((np.nan_to_num(dnbr, nan=-0.5) + 0.5) / 1.5, 0, 1) * 255
-    raw = np.dstack([enc, np.where(valid, 255, 0), np.zeros_like(enc), np.full_like(enc, 255)]).astype(np.uint8)
-    Image.fromarray(raw, "RGBA").resize((TEX, TEX), Image.NEAREST).save(OUT / "dnbr_raw.png")
-
-    del dem, dem_small
     build_map(dnbr, valid)
     shutil.copy(PROC / "baseline_metrics.json", OUT / "baseline_metrics.json")
     shutil.copy(PROC / "block_cv.json", OUT / "block_cv.json")

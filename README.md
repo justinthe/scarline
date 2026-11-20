@@ -35,7 +35,6 @@ On the six blocks, the model beats all-burnt on 4 of 6, but the gain is not sign
 |---|---|---|
 | Sentinel-2 L2A, Earth Search (Element 84), tile 54LXL | imagery | Copernicus Sentinel Data Legal Notice (free, full, open) |
 | Queensland Sentinel-2 Fire Scars 2022, ArcGIS layer 36 | labels | CC BY 4.0 (data.qld.gov.au and TERN records) |
-| Copernicus DEM GLO-30 (2021) | 3D terrain heights | Copernicus DEM licence, attribution required |
 
 Attribution: Contains modified Copernicus Sentinel data 2022. State of Queensland (Department of Environment and Science) 2022; produced by JRSRP using Sentinel-2 data.
 
@@ -48,10 +47,17 @@ Run from the project root:
     python3 pipeline/fetch_aoi.py capeyork   # clip scenes and scars to data/capeyork/raw/
     python3 pipeline/baseline.py capeyork    # dNBR threshold, full-scene east/west split
     python3 pipeline/block_cv.py             # leave-one-block-out on mid-density blocks
-    python3 pipeline/build_web.py            # web assets into docs/data/ (map, inspect table, scars, 3D textures)
+    python3 pipeline/build_web.py            # web assets into docs/data/ (map, inspect table, scars, home_change.png)
     python3 pipeline/check_web.py            # asserts the web assets against the source tifs
 
 Outputs: `data/capeyork/processed/baseline_metrics.json` and `block_cv.json`. `data/` is git-ignored except for the licence record.
+
+## Pages
+
+- `docs/index.html`: home page for a general audience (ages 13 to 15). Before/after plates, the negative result and why.
+- `docs/specialists.html`: interactive map with click-to-inspect, threshold slider, scores, method, glossary. Leaflet 1.9.4 is served locally from `docs/vendor/leaflet/`.
+
+View locally: `cd docs && python3 -m http.server`.
 
 ## Layout
 
@@ -60,7 +66,11 @@ Outputs: `data/capeyork/processed/baseline_metrics.json` and `block_cv.json`. `d
       fetch_aoi.py    # STAC metadata, band clipping, scar download
       baseline.py     # dNBR, threshold sweep, scoring
       block_cv.py     # block cross-validation
-      build_web.py    # docs/data/ assets: 3D textures, DEM, 2D map and inspect table
+      build_web.py    # docs/data/ assets: 2D map, inspect table, home_change.png
       check_web.py    # checks web assets against source rasters and baseline metrics
+    docs/
+      index.html        # home page: plain-language, no third-party requests
+      specialists.html  # map, scores, methods, glossary; local Leaflet only
+      site.css, vendor/leaflet/, data/
     data/             # git-ignored outputs
     PLAN.md           # original plan (now superseded by this result)

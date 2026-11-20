@@ -6,11 +6,11 @@ web
 
 ## Stack
 
-Static site in `docs/`, GitHub Pages. Three.js for the 3D terrain; Leaflet 1.9.4 (jsDelivr, SRI) for the 2D map with click-to-inspect, OpenStreetMap basemap (tile.openstreetmap.org, attribution shown, toggle). The 2D map is also the fallback when WebGL is unavailable. Plain HTML, CSS and ES modules. No backend, no build step required for viewing. Data as pre-built JSON and PNG/GeoJSON files.
+Static site in `docs/`, GitHub Pages: a home page (`index.html`) and a specialists page (`specialists.html`), sharing `site.css`. Plain HTML, CSS and a little JavaScript. Leaflet 1.9.4 is a local copy in `docs/vendor/leaflet/`, used only on the specialists page for the 2D map with click-to-inspect. The home page makes no third-party requests (no fonts, CDN, basemap or analytics); the specialists page loads only local files. System font stacks only. No backend, no build step for viewing. Data as pre-built JSON and PNG/GeoJSON files.
 
 ## Users
 
-Hiring managers, technical leads and remote-sensing peers reviewing a portfolio. Secondary: practitioners and journalists who want an honest look at what a simple burn-mapping method can and cannot do.
+General public first (reading level about age 13 to 15): people who want to know what a simple burn-mapping method can and cannot do. Specialists second: remote-sensing peers, technical leads and hiring managers who want the map, scores and method details on the specialists page.
 
 ## Product Purpose
 
@@ -18,7 +18,7 @@ Scarline is a portfolio demo of burn-scar change detection over Cape York, Queen
 
 ## Positioning
 
-A worked, honest example of remote-sensing analysis, presented as a piece that makes the candidate look like a careful analyst, not a hype-driven one. Not a product, not a national burn map.
+A plain-language, honest worked example of remote-sensing analysis for a general reader, with the full detail one click away for specialists. Not a product, not a national burn map.
 
 ## Operating Context
 
@@ -26,9 +26,9 @@ Visitors arrive from a link, usually on desktop, sometimes on a phone. Expect a 
 
 ## Capabilities and Constraints
 
-- Static only: no server, no database, no API keys, no analytics in v1.
+- Static only: no server, no database, no API keys, no analytics.
 - Raster data is pre-rendered PNG tiles or a single overlay; no in-browser GeoTIFF decoding.
-- Page loads in under 5 seconds on broadband; 3D must degrade to a flat image on devices without WebGL.
+- Page loads in under 5 seconds on broadband.
 - Works at 390 px wide and 1280–1600 px desktop.
 - Map overlays use square display cells of about 49 m (EPSG:3857, 1024 wide); each shows the single 10 m pixel at its centre.
 - Single area: Cape York, tile 54LXL. Single scene pair: pre 2022-07-13, post 2022-10-26.
@@ -50,13 +50,13 @@ Visitors arrive from a link, usually on desktop, sometimes on a phone. Expect a 
 ## Product Principles
 
 1. Honesty over impact: the result shown is the result measured.
-2. The data is the star: the terrain, the scars and the scene change carry the page, not decorative chrome.
+2. The data is the star: the plates, scars and scores carry the page, not decorative chrome.
 3. Show the mechanism, not a claim: each number can be traced to a layer on the page.
-4. Calm where it counts: tables and metrics read cleanly; the 3D moment is the one place the page spends drama.
+4. Plain words first: a 13 to 15 year old can follow the home page; terms are defined or put in a "What does this mean?" note.
 
 ## Accessibility & Inclusion
 
-- WCAG AA contrast for all text; the colour ramp for dNBR is not red/green only (value and labels carry meaning).
-- Keyboard operable controls: slider, toggles, and scroll sections. Reduced-motion preference disables scroll-driven camera moves.
-- A 2D fallback image and text description of the terrain for visitors without WebGL or who prefer it.
-- Plain-language summary of method for non-specialists in the Method panel.
+- WCAG AA contrast for all text; one signal colour (rust) with labels carrying meaning.
+- Keyboard operable controls: flip button, slider, toggles. Motion is limited to a 150 ms fade, off under reduced motion.
+- Body text 18px or larger, WCAG AA. Native details/summary notes need no JavaScript.
+- Glossary on the specialists page defines every technical term.
