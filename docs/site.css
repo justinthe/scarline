@@ -11,7 +11,8 @@
   --body: system-ui, Arial, sans-serif;
 }
 * { box-sizing: border-box; }
-html { background: var(--paper); }
+html { background: var(--paper); font-size: 18px; }
+@media (max-width: 640px) { html { font-size: 17px; } }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 400 18px/1.6 var(--body); }
 :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 a { color: var(--ink); text-decoration-thickness: 1px; text-underline-offset: 3px; }
@@ -50,7 +51,7 @@ dl.glossary dt { font-weight: 700; margin-top: 1em; }
 dl.glossary dd { margin: 0; }
 
 button { font: 700 1.125rem/1.4 var(--body); color: var(--ink); background: var(--paper); border: 1px solid var(--ink); padding: .5rem 1rem; cursor: pointer; }
-button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+button[aria-pressed="true"], button[data-show="october"] { background: var(--ink); color: var(--paper); }
 
 footer { border-top: 1px solid var(--rule); padding: 1.2rem 16px 3rem; }
 footer p { max-width: 38rem; margin: 0 auto; }

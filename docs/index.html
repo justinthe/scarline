@@ -58,7 +58,7 @@
 </div>
 
 <div class="wide pair-wrap">
-<button type="button" class="flip" id="flip" aria-pressed="false">Showing July (before). Show October</button>
+<button type="button" class="flip" id="flip" data-show="july">Showing July (before). Show October (after)</button>
 <div class="plates" id="plates" data-show="pre">
 <figure class="plate" id="plate1">
 <p class="plate-no">Plate 1: Before, July 2022</p>
@@ -183,10 +183,10 @@
   var d = document.documentElement, b = document.getElementById("flip"), p = document.getElementById("plates");
   d.className += " js";
   b.addEventListener("click", function () {
-    var on = b.getAttribute("aria-pressed") !== "true";
-    b.setAttribute("aria-pressed", String(on));
+    var on = b.getAttribute("data-show") !== "october";
+    b.setAttribute("data-show", on ? "october" : "july");
     p.setAttribute("data-show", on ? "post" : "pre");
-    b.textContent = on ? "Showing October (after). Show July" : "Showing July (before). Show October";
+    b.textContent = on ? "Showing October (after). Show July (before)" : "Showing July (before). Show October (after)";
   });
 })();
 </script>
